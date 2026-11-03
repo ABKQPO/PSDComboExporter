@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSCameraUsageDescription</key>
+  <string>本应用不需要摄像头权限。</string>
+  <key>NSPhotoLibraryUsageDescription</key>
+  <string>用于在导出完成后选择保存位置。</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>用于读取你选择导入的 PSD / IPV 文件，并把导出的压缩包写入你指定的文件夹。</string>
+</dict>
+</plist>

@@ -1,0 +1,90 @@
+{
+  "appId": "com.cromachina.psdexport",
+  "productName": "PSD组合导出",
+  "copyright": "",
+  "directories": {
+    "output": "release",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "package.json",
+    "!node_modules/**"
+  ],
+  "extraMetadata": {
+    "main": "electron/main.cjs"
+  },
+  "asar": true,
+  "win": {
+    "target": [
+      { "target": "nsis", "arch": ["x64"] },
+      { "target": "portable", "arch": ["x64"] }
+    ],
+    "artifactName": "PSD-Combo-Exporter-${version}-win-${arch}.${ext}",
+    "icon": "build/icon.ico",
+    "fileAssociations": [
+      {
+        "ext": "psd",
+        "name": "Photoshop 文档",
+        "description": "Photoshop 文档",
+        "icon": "build/icon.ico"
+      },
+      {
+        "ext": "ipv",
+        "name": "爱笔思画作品",
+        "description": "爱笔思画作品",
+        "icon": "build/icon.ico"
+      }
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "PSD 组合导出",
+    "deleteAppDataOnUninstall": false,
+    "artifactName": "PSD-Combo-Exporter-${version}-win-${arch}-setup.${ext}"
+  },
+  "portable": {
+    "artifactName": "PSD-Combo-Exporter-${version}-win-${arch}-portable.${ext}"
+  },
+  "mac": {
+    "target": [
+      { "target": "dmg", "arch": ["x64", "arm64"] },
+      { "target": "zip", "arch": ["x64", "arm64"] }
+    ],
+    "category": "public.app-category.graphics-design",
+    "icon": "build/icon.png",
+    "artifactName": "PSD-Combo-Exporter-${version}-mac-${arch}.${ext}",
+    "identity": null,
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false,
+    "entitlements": "electron/entitlements.mac.plist",
+    "entitlementsInherit": "electron/entitlements.mac.plist",
+    "extendInfo": {
+      "NSDocumentsFolderUsageDescription": "用于导入 PSD 文件并把导出结果写入你选择的文件夹。"
+    },
+    "fileAssociations": [
+      { "ext": "psd", "name": "Photoshop Document", "role": "Editor" },
+      { "ext": "ipv", "name": "ibisPaint Work", "role": "Editor" }
+    ]
+  },
+  "dmg": {
+    "artifactName": "PSD-Combo-Exporter-${version}-mac-${arch}.${ext}"
+  },
+  "linux": {
+    "target": [
+      { "target": "AppImage", "arch": ["x64"] },
+      { "target": "tar.gz", "arch": ["x64"] }
+    ],
+    "category": "Graphics",
+    "icon": "build/icon.png",
+    "artifactName": "PSD-Combo-Exporter-${version}-linux-${arch}.${ext}",
+    "desktop": {
+      "MimeType": "image/vnd.adobe.photoshop;application/x-ibispaint;"
+    }
+  }
+}

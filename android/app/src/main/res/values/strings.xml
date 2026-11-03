@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PSD组合导出</string>
+    <string name="title_activity_main">PSD组合导出</string>
+    <string name="package_name">com.cromachina.psdexport</string>
+    <string name="custom_url_scheme">com.cromachina.psdexport</string>
+</resources>

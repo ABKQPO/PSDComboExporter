@@ -1,0 +1,40 @@
+{
+  "name": "psd-combo-exporter",
+  "private": true,
+  "version": "1.7.0",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "author": {
+    "name": "cromachina"
+  },
+  "description": "PSD 图层组合导出器：按选项组做笛卡尔积批量导出，支持 Windows / macOS / Linux / Android",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "test": "node test/run.mjs",
+    "test:fidelity": "node test/fidelity-run.mjs",
+    "test:e2e": "npm run build && electron test/e2e.cjs",
+    "electron:dev": "npm run build && electron .",
+    "pack:web": "node scripts/pack.mjs web",
+    "pack:desktop": "node scripts/pack.mjs desktop",
+    "pack:win": "node scripts/pack.mjs desktop win",
+    "pack:mac": "node scripts/pack.mjs desktop mac",
+    "pack:linux": "node scripts/pack.mjs desktop linux",
+    "pack:android": "node scripts/pack.mjs android",
+    "pack:all": "node scripts/pack.mjs all"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "ag-psd": "^34.1.0",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}

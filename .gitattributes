@@ -1,0 +1,23 @@
+# Normalise line endings so Windows and Linux/macOS checkouts stay in sync
+* text=auto eol=lf
+
+# Binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.icns binary
+*.jar binary
+*.psd binary
+*.zip binary
+*.apk binary
+*.exe binary
+*.dmg binary
+
+# Shell scripts must keep LF to stay executable on Linux/macOS
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Windows-only scripts keep CRLF
+*.bat text eol=crlf
+gradlew.bat text eol=crlf

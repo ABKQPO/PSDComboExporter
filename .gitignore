@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+dist-prof/
+release/
+out/
+apk-out/
+
+# Web assets generated into the Android project by `cap sync`
+android/app/src/main/assets/public/*
+!android/app/src/main/assets/public/.gitkeep
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# Android / Gradle
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/.gradle/
+android/local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+!android/gradle/wrapper/gradle-wrapper.jar
+
+# Tests and benchmarks
+test-out/
+.testlogs/
+*.log
+coverage/
+*.trace
+*.heapprofile
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# Local secrets
+.env
+.env.*
+!.env.example
