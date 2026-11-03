@@ -1,0 +1,144 @@
+.rule {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-3);
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rule.frozen {
+  border-style: dashed;
+}
+.rule-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.updown {
+  display: flex;
+  flex-direction: column;
+}
+.rule-title {
+  flex: 1;
+  font-weight: 650;
+  font-size: 15px;
+  background: transparent;
+  border-color: transparent;
+  padding: 3px 6px;
+}
+.rule-title:hover {
+  border-color: var(--line);
+}
+.seg {
+  display: flex;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.seg button {
+  flex: 1;
+  border: none;
+  border-right: 1px solid var(--line-2);
+  background: transparent;
+  padding: 6px 2px;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.seg button:last-child {
+  border-right: none;
+}
+.seg button.on {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.rule-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  min-height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-2);
+  cursor: pointer;
+  max-width: 100%;
+}
+.opt:hover {
+  border-color: var(--accent);
+}
+.opt.on {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+}
+.opt.blocked {
+  border-color: rgba(242, 96, 106, 0.5);
+}
+.opt.blocked .opt-name {
+  text-decoration: line-through;
+  text-decoration-color: var(--bad);
+}
+.opt.empty {
+  border-style: dashed;
+}
+.opt.locked {
+  cursor: default;
+}
+.opt.none {
+  padding-right: 12px;
+}
+.opt .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--text-faint);
+  flex: none;
+}
+.opt .dot.sq {
+  border-radius: 3px;
+}
+.opt.on .dot {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.opt-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.count {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.count.warn {
+  color: var(--warn);
+}
+.opt-act {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex: none;
+}
+.opt-act:hover {
+  background: var(--bg-4);
+  color: var(--text);
+}

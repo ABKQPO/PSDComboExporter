@@ -8,37 +8,8 @@ import { rootsTopFirst } from '../core/project';
 import * as store from './store';
 import { h } from './dom';
 import { KIND_INFO, renderRestoreNotice } from './rulesPanel';
-
-const BLEND_CN: Record<string, string> = {
-  normal: '正常',
-  multiply: '正片叠底',
-  screen: '滤色',
-  overlay: '叠加',
-  'soft light': '柔光',
-  'hard light': '强光',
-  'vivid light': '亮光',
-  'linear light': '线性光',
-  'pin light': '点光',
-  'hard mix': '实色混合',
-  'color dodge': '颜色减淡',
-  'color burn': '颜色加深',
-  'linear dodge': '线性减淡（添加）',
-  'linear burn': '线性加深',
-  darken: '变暗',
-  lighten: '变亮',
-  'darker color': '深色',
-  'lighter color': '浅色',
-  difference: '差值',
-  exclusion: '排除',
-  subtract: '减去',
-  divide: '划分',
-  hue: '色相',
-  saturation: '饱和度',
-  color: '颜色',
-  luminosity: '明度',
-  'pass through': '穿透',
-  dissolve: '溶解',
-};
+import { t } from '../i18n';
+import { blendLabel } from './blendModes';
 
 export function renderLayersPanel(): HTMLElement {
   const s = store.state;
@@ -49,10 +20,10 @@ export function renderLayersPanel(): HTMLElement {
     h(
       'div',
       { class: 'guide' },
-      h('b', null, '第 1 步：选择参与组合的图层。'),
-      ' 勾选图层或图层组，在下方把它们设为一个「选项组」；或点组旁边的 ',
-      h('span', { class: 'kbd' }, '⇢ 子项作选项'),
-      '，把组内每个子图层变成一个选项（如 发型：短发 / 长发）。没有加入任何选项组的图层，按 PSD 里保存的显示状态出现在每张导出图中；点图层左边的眼睛图标可以直接显示 / 隐藏它。',
+      h('b', null, t('layers.guideTitle')),
+      ` ${t('layers.guideBefore')} `,
+      h('span', { class: 'kbd' }, t('layers.childrenAsOptions')),
+      t('layers.guideAfter'),
     ),
   );
 
@@ -72,16 +43,16 @@ export function renderLayersPanel(): HTMLElement {
 
   const head = h('div', { class: 'row wrap', style: 'gap:6px;margin:4px 0 8px' });
   head.appendChild(h('span', { class: 'pill' }, `${p.width}×${p.height}`));
-  head.appendChild(h('span', { class: 'pill' }, `${p.layers.length} 个图层/组`));
-  shownPill = h('span', { class: 'pill ok' }, `当前显示 ${s.vis?.drawn.size ?? 0} 个图层`);
+  head.appendChild(h('span', { class: 'pill' }, t('layers.layerCount', { count: p.layers.length })));
+  shownPill = h('span', { class: 'pill ok' }, t('layers.visibleCount', { count: s.vis?.drawn.size ?? 0 }));
   head.appendChild(shownPill);
   head.appendChild(h('span', { class: 'spacer' }));
   if (s.platform !== 'android') {
     head.appendChild(
       h(
         'button',
-        { class: 'btn small', title: '按 PSD 保存时的显示状态渲染，与 PSD 内的合成图逐像素比较', onclick: () => void store.runCompare() },
-        '校验渲染一致性',
+        { class: 'btn small', title: t('layers.compareTitle'), onclick: () => void store.runCompare() },
+        t('layers.compare'),
       ),
     );
   }
@@ -124,7 +95,7 @@ export function renderLayersPanel(): HTMLElement {
   const search = h('input', {
     type: 'search',
     class: 'search',
-    placeholder: '搜索图层或组名…',
+    placeholder: t('layers.search'),
     value: s.search,
     oninput: (e: Event) => {
       const v = (e.target as HTMLInputElement).value;
@@ -149,7 +120,7 @@ export function renderLayersPanel(): HTMLElement {
     h(
       'div',
       { class: 'hint', style: 'margin-top:10px' },
-      '图例：睁眼 = 正在显示；黄色睁眼 = 自身打开但上级组隐藏；闭眼 = 隐藏。图层名后的蓝色标签表示它属于哪个选项组；「整体」组可以展开查看，但里面的图层不能拆开当选项。',
+      t('layers.legend'),
     ),
   );
   return root;
@@ -182,7 +153,7 @@ function renderTree(): void {
     if (el) frag.appendChild(el);
   }
   treeHost.replaceChildren(frag);
-  if (q && !treeHost.childElementCount) treeHost.appendChild(h('div', { class: 'hint', style: 'padding:10px' }, `没有找到包含「${s.search}」的图层`));
+  if (q && !treeHost.childElementCount) treeHost.appendChild(h('div', { class: 'hint', style: 'padding:10px' }, t('layers.noMatches', { query: s.search })));
 }
 
 function rowClass(layer: LayerNode, st: string): string {
@@ -225,7 +196,7 @@ export function patchLayersPanel(): void {
         : []),
     );
   }
-  if (shownPill) shownPill.textContent = `当前显示 ${s.vis?.drawn.size ?? 0} 个图层`;
+  if (shownPill) shownPill.textContent = t('layers.visibleCount', { count: s.vis?.drawn.size ?? 0 });
 }
 
 /** Which app's compositing rules are used, how well they match, and a manual override. */
@@ -239,13 +210,13 @@ function renderProfileCard(): HTMLElement {
     h(
       'div',
       { class: 'field' },
-      h('label', null, '合成方式'),
+      h('label', null, t('layers.compositingMethod')),
       h(
         'select',
         { onchange: (e: Event) => void store.chooseProfile((e.target as HTMLSelectElement).value as any) },
-        h('option', { value: 'auto', selected: !p.settings.profile }, `自动识别（${store.PROFILE_LABEL[cal?.profile ?? 'photoshop']}）`),
+        h('option', { value: 'auto', selected: !p.settings.profile }, t('layers.autoProfile', { profile: store.profileLabel(cal?.profile ?? 'photoshop') })),
         ...(Object.keys(store.PROFILE_LABEL) as (keyof typeof store.PROFILE_LABEL)[]).map((id) =>
-          h('option', { value: id, selected: p.settings.profile === id }, store.PROFILE_LABEL[id]),
+          h('option', { value: id, selected: p.settings.profile === id }, store.profileLabel(id)),
         ),
       ),
     ),
@@ -496,7 +467,7 @@ function renderNode(layer: LayerNode, depth: number, inPart: boolean): HTMLEleme
     );
   }
   if (layer.blendMode !== 'normal' && !(isGroup && layer.blendMode === 'pass through'))
-    badges.appendChild(h('span', { class: 'mini' }, BLEND_CN[layer.blendMode] ?? layer.blendMode));
+    badges.appendChild(h('span', { class: 'mini' }, blendLabel(layer.blendMode) ?? layer.blendMode));
   if (layer.opacity < 0.999) badges.appendChild(h('span', { class: 'mini' }, `${Math.round(layer.opacity * 100)}%`));
   if (layer.fill < 0.999) badges.appendChild(h('span', { class: 'mini' }, `填充 ${Math.round(layer.fill * 100)}%`));
   if (layer.hasMask) badges.appendChild(h('span', { class: 'mini' }, '蒙版'));

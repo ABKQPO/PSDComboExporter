@@ -1,7 +1,9 @@
 /** Step 5 — export every combination into one ZIP. */
 
 import * as store from './store';
+import { exportConfigText, importConfigText } from './configIO';
 import { h, fmtBytes } from './dom';
+import { t } from '../i18n';
 import { createTarget, openTextFile, saveTextFile } from '../core/platform';
 import { exportNames, runExport, type ExportProgress } from '../core/exporter';
 import { engine } from '../engine/client';
@@ -42,7 +44,7 @@ let cancelRequested = false;
 
 export function cancelExport(): void {
   cancelRequested = true;
-  store.setBusy('正在取消…', store.state.busyProgress);
+  store.setBusy(t('export.cancelPending'), store.state.busyProgress);
 }
 
 export function renderExportPanel(): HTMLElement {
@@ -56,15 +58,15 @@ export function renderExportPanel(): HTMLElement {
     h(
       'div',
       { class: 'guide' },
-      h('b', null, '第 5 步：导出。'),
-      st.exportMode === 'zip' ? ' 所有组合按原始尺寸逐像素合成，全部打包进一个 ZIP 压缩包。' : ' 所有组合按原始尺寸逐像素合成，直接写入你选择的文件夹。',
+      h('b', null, t('export.step5')),
+      st.exportMode === 'zip' ? t('export.step5Zip') : t('export.step5Folder'),
     ),
   );
 
   const card = h('div', { class: 'card' });
   card.appendChild(
     field(
-      '格式',
+      t('export.format'),
       h(
         'select',
         {
@@ -73,9 +75,9 @@ export function renderExportPanel(): HTMLElement {
             store.refresh({ keepFocus: true });
           },
         },
-        h('option', { value: 'png', selected: st.format === 'png' }, 'PNG（无损，推荐）'),
-        h('option', { value: 'jpeg', selected: st.format === 'jpeg' }, 'JPEG（有损，体积小，透明处填白）'),
-        h('option', { value: 'webp', selected: st.format === 'webp' }, 'WebP（有损）'),
+        h('option', { value: 'png', selected: st.format === 'png' }, t('export.png')),
+        h('option', { value: 'jpeg', selected: st.format === 'jpeg' }, t('export.jpeg')),
+        h('option', { value: 'webp', selected: st.format === 'webp' }, t('export.webp')),
       ),
     ),
   );
@@ -83,7 +85,7 @@ export function renderExportPanel(): HTMLElement {
     const val = h('span', { class: 'pill' }, String(st.quality));
     card.appendChild(
       field(
-        '质量',
+        t('export.quality'),
         h('input', {
           type: 'range',
           min: '50',
@@ -98,11 +100,11 @@ export function renderExportPanel(): HTMLElement {
         val,
       ),
     );
-    card.appendChild(h('div', { class: 'notice warn' }, 'JPEG / WebP 是有损压缩，像素不会与 PSD 完全一致。需要完全一致请选 PNG。'));
+    card.appendChild(h('div', { class: 'notice warn' }, t('export.lossyHint')));
   }
   card.appendChild(
     field(
-      '尺寸',
+      t('export.size'),
       h(
         'select',
         {
@@ -115,7 +117,7 @@ export function renderExportPanel(): HTMLElement {
           h(
             'option',
             { value: String(v), selected: Math.abs(st.scale - v) < 1e-6 },
-            v === 1 ? `原始尺寸 ${p.width}×${p.height}（推荐）` : `${v * 100}%：${Math.round(p.width * v)}×${Math.round(p.height * v)}`,
+            v === 1 ? t('export.originalSize', { w: p.width, h: p.height }) : `${v * 100}%：${Math.round(p.width * v)}×${Math.round(p.height * v)}`,
           ),
         ),
       ),
@@ -123,7 +125,7 @@ export function renderExportPanel(): HTMLElement {
   );
   card.appendChild(
     field(
-      '文件名',
+      t('export.fileName'),
       h('input', {
         value: st.template,
         spellcheck: false,
@@ -138,12 +140,12 @@ export function renderExportPanel(): HTMLElement {
     h(
       'div',
       { class: 'hint' },
-      '可用变量：{psd} 文件名　{combo} 所有选项名　{primary} 第一个选项组的选项　{index} 001 序号　{n} 1 序号。重名会自动加 (2)、(3)。',
+      t('export.tokens'),
     ),
   );
   card.appendChild(
     field(
-      st.exportMode === 'zip' ? '压缩包内' : '文件夹内',
+      st.exportMode === 'zip' ? t('export.inZip') : t('export.inFolder'),
       h(
         'select',
         {
@@ -152,8 +154,8 @@ export function renderExportPanel(): HTMLElement {
             store.refresh({ keepFocus: true });
           },
         },
-        h('option', { value: 'flat', selected: st.layout === 'flat' }, '所有图片放在一起'),
-        h('option', { value: 'primary', selected: st.layout === 'primary' }, `按第一个选项组「${p.rules.find((r) => r.enabled && r.kind !== 'fixed')?.name ?? '—'}」分文件夹`),
+        h('option', { value: 'flat', selected: st.layout === 'flat' }, t('export.allTogether')),
+        h('option', { value: 'primary', selected: st.layout === 'primary' }, t('export.byPrimaryFolder', { name: p.rules.find((r) => r.enabled && r.kind !== 'fixed')?.name ?? '—' })),
       ),
     ),
   );
@@ -163,11 +165,11 @@ export function renderExportPanel(): HTMLElement {
   const ticked = res.combos.filter((c) => !s.excludedCombos.has(c.signature)).length;
   const allN = s.exportScope === 'all' || res.rejected.length > 0 ? store.allPossibleResult()?.combos.length ?? 0 : res.combos.length;
   const scope = h('div', { class: 'card col', style: 'gap:6px' });
-  scope.appendChild(h('div', { class: 'section-title', style: 'margin:0' }, '导出范围'));
+  scope.appendChild(h('div', { class: 'section-title', style: 'margin:0' }, t('export.scope')));
   const scopes: [typeof s.exportScope, string, string][] = [
-    ['selected', `已勾选的组合（${ticked} 张）`, '在「组合」页勾掉的不导出。'],
-    ['valid', `全部有效组合（${res.combos.length} 张）`, '忽略「组合」页的勾选，导出所有符合规则的组合。'],
-    ['all', `全部可能组合（${allN} 张）`, '连「规则」页的互斥 / 排除也忽略，选项组能拼出的每一种都导出。'],
+    ['selected', t('export.scopeTicked', { n: ticked }), t('export.scopeTickedHint')],
+    ['valid', t('export.scopeValid', { n: res.combos.length }), t('export.scopeValidHint')],
+    ['all', t('export.scopeAll', { n: allN }), t('export.scopeAllHint')],
   ];
   for (const [key, label, hint] of scopes) {
     scope.appendChild(
@@ -188,19 +190,19 @@ export function renderExportPanel(): HTMLElement {
     h(
       'div',
       { class: 'row wrap', style: 'gap:6px' },
-      h('span', { class: chosen.length ? 'pill ok' : 'pill bad' }, `${chosen.length} 张图`),
+      h('span', { class: chosen.length ? 'pill ok' : 'pill bad' }, t('export.images', { n: chosen.length })),
       h('span', { class: 'pill' }, st.format.toUpperCase()),
       h('span', { class: 'pill' }, `${Math.round(p.width * st.scale)}×${Math.round(p.height * st.scale)}`),
       h(
         'span',
-        { class: 'pill', title: '合成线程负责拼图层，压缩线程同时把上一张压成 PNG；相邻组合里没变的区域直接复用' },
-        `${Math.max(1, engine.workerCount)} 合成 + ${engine.encoderCount} 压缩线程`,
+        { class: 'pill', title: t('export.threads') },
+        t('export.threadsDetail', { workers: Math.max(1, engine.workerCount), encoders: engine.encoderCount }),
       ),
     ),
   );
   const preview = h('div', { class: 'names mono' });
   for (const n of names.slice(0, 5)) preview.appendChild(h('div', null, n));
-  if (names.length > 5) preview.appendChild(h('div', { class: 'hint' }, `…共 ${names.length} 个文件`));
+  if (names.length > 5) preview.appendChild(h('div', { class: 'hint' }, t('export.moreFiles', { n: names.length })));
   sum.appendChild(preview);
   sum.appendChild(
     h(
@@ -208,22 +210,22 @@ export function renderExportPanel(): HTMLElement {
       { class: 'hint' },
       st.exportMode === 'folder'
         ? s.platform === 'android'
-          ? '点击导出后选择文件夹，图片会逐张写入该文件夹。'
+          ? t('export.folderAndroid')
           : s.platform === 'electron'
-          ? '点击导出后选择文件夹，完成后会自动在资源管理器中显示。'
-          : '点击导出后选择文件夹，浏览器需要支持 File System Access API。'
+          ? t('export.folderDesktop')
+          : t('export.folderWeb')
         : s.platform === 'android'
-        ? '点击导出后会弹出系统「保存到」对话框，选择 ZIP 的保存位置（如「下载」）。'
+        ? t('export.zipAndroid')
         : s.platform === 'electron'
-        ? '点击导出后选择 ZIP 的保存位置，完成后会自动在资源管理器中显示。'
-        : '导出完成后浏览器会下载 ZIP。',
+        ? t('export.hintDesktop')
+        : t('export.hintWeb'),
     ),
   );
   if (s.exportScope === 'selected' && chosen.length !== res.combos.length) {
-    sum.appendChild(h('div', { class: 'hint' }, '在「组合」页可以勾选要导出的图，或点「全选」恢复导出全部。'));
+    sum.appendChild(h('div', { class: 'hint' }, t('export.tickHint')));
   }
   if (s.exportScope === 'all' && res.rejected.length > 0) {
-    sum.appendChild(h('div', { class: 'notice warn' }, `其中 ${chosen.length - res.combos.length} 张违反了「规则」页的互斥 / 排除规则，也会一起导出。`));
+    sum.appendChild(h('div', { class: 'notice warn' }, t('export.violationNote', { n: chosen.length - res.combos.length })));
   }
   root.appendChild(sum);
 
@@ -236,18 +238,18 @@ export function renderExportPanel(): HTMLElement {
         disabled: chosen.length === 0 || s.exporting,
         onclick: () => void startExport(),
       },
-      s.exporting ? '导出中…' : `导出 ${chosen.length} 张${st.exportMode === 'zip' ? '为 ZIP' : '到文件夹'}`,
+      s.exporting ? t('export.exporting') : t('export.startButton', { n: chosen.length, mode: st.exportMode === 'zip' ? t('export.toZip') : t('export.toFolder') }),
     ),
   );
 
   // configuration files
   const cfg = h('div', { class: 'card col', style: 'gap:6px' });
-  cfg.appendChild(h('div', { class: 'section-title', style: 'margin:0' }, '配置文件'));
+  cfg.appendChild(h('div', { class: 'section-title', style: 'margin:0' }, t('export.config')));
   cfg.appendChild(
     h(
       'div',
       { class: 'hint' },
-      '把选项组、规则、导出设置、显示/隐藏改动、整体组、组合勾选保存成一个 .json。模板画完后：导入新的 PSD → 导入配置 → 一键导出。图层按「组/图层」名字对应，改了名字的图层会提示。',
+      t('export.configHint'),
     ),
   );
   cfg.appendChild(
@@ -260,14 +262,14 @@ export function renderExportPanel(): HTMLElement {
           class: 'btn small',
           onclick: async () => {
             try {
-              const where = await saveTextFile(`${p.name.replace(/\.[^.]+$/, '')}-导出配置.json`, store.exportConfigText());
-              if (where !== null) store.toast(where ? `配置已保存：${where}` : '配置已保存', 'ok');
+              const where = await saveTextFile(t('export.configFileName', { name: p.name.replace(/\.[^.]+$/, '') }), exportConfigText());
+              if (where !== null) store.toast(where ? t('export.configSaved', { where }) : t('export.configSavedShort'), 'ok');
             } catch (err) {
-              store.toast(`保存配置失败：${(err as Error).message}`, 'bad');
+              store.toast(t('export.configSaveFailed', { msg: (err as Error).message }), 'bad');
             }
           },
         },
-        '导出配置',
+        t('export.exportConfig'),
       ),
       h(
         'button',
@@ -276,13 +278,13 @@ export function renderExportPanel(): HTMLElement {
           onclick: async () => {
             try {
               const file = await openTextFile('.json');
-              if (file) store.importConfigText(file.text);
+              if (file) importConfigText(file.text);
             } catch (err) {
-              store.toast(`导入配置失败：${(err as Error).message}`, 'bad');
+              store.toast(t('export.configImportFailed', { msg: (err as Error).message }), 'bad');
             }
           },
         },
-        '导入配置',
+        t('export.importConfig'),
       ),
     ),
   );
@@ -290,12 +292,12 @@ export function renderExportPanel(): HTMLElement {
     h(
       'div',
       { class: 'row wrap', style: 'gap:6px;align-items:center;margin-top:4px' },
-      h('button', { class: 'btn small danger', title: '清除这个文件的全部设置，回到刚导入的状态', onclick: () => store.startFresh(true) }, '全部重置'),
+      h('button', { class: 'btn small danger', title: t('export.resetAll'), onclick: () => store.startFresh(true) }, t('export.reset')),
       h(
         'label',
         { class: 'row', style: 'gap:4px;font-size:12px' },
         h('input', { type: 'checkbox', checked: s.autoRestore, onchange: (e: Event) => store.setAutoRestore((e.target as HTMLInputElement).checked) }),
-        '再次导入同一个文件时自动恢复设置',
+        t('export.autoRestore'),
       ),
     ),
   );
@@ -307,8 +309,8 @@ export function renderExportPanel(): HTMLElement {
       h(
         'div',
         { class: 'notice ok' },
-        h('div', null, h('b', null, '导出完成　'), r.summary),
-        h('div', { class: 'hint' }, `${r.entries} 张，${fmtBytes(r.archiveBytes)}，用时 ${fmtDuration(r.elapsedMs / 1000)}（平均每张 ${(r.elapsedMs / 1000 / Math.max(1, r.entries)).toFixed(2)} 秒）`),
+        h('div', null, h('b', null, t('export.doneTitle')), r.summary),
+        h('div', { class: 'hint' }, t('export.doneDetail', { n: r.entries, size: fmtBytes(r.archiveBytes), time: fmtDuration(r.elapsedMs / 1000), avg: (r.elapsedMs / 1000 / Math.max(1, r.entries)).toFixed(2) })),
       ),
     );
   }
@@ -324,7 +326,7 @@ export async function startExport(): Promise<void> {
   const p = s.project;
   const combos = store.selectedCombos();
   if (!p || s.exporting || !combos.length) return;
-  if (s.prefs.confirmBig && combos.length > 300 && !confirm(`将导出 ${combos.length} 张原尺寸图片，可能需要较长时间。继续？`)) return;
+  if (s.prefs.confirmBig && combos.length > 300 && !confirm(t('export.confirmBig', { n: combos.length }))) return;
 
   s.exporting = true;
   s.exportResult = null;
@@ -338,10 +340,10 @@ export async function startExport(): Promise<void> {
     const prog = last;
     const elapsed = (Date.now() - started) / 1000;
     const eta = prog.done > 0 ? (elapsed / prog.done) * (prog.total - prog.done) : 0;
-    const what = s.prefs.progressNames ? `：${prog.current}` : '';
+    const what = s.prefs.progressNames ? `: ${prog.current}` : '';
     store.setBusy(
-      `正在导出第 ${Math.min(prog.total, prog.done + 1)} / ${prog.total} 张${what}\n已用 ${fmtDuration(elapsed)}` +
-        (prog.done > 0 ? `，预计还需 ${fmtDuration(eta)}，已写入 ${fmtBytes(prog.bytes)}` : ''),
+      t('export.progressLine', { current: Math.min(prog.total, prog.done + 1), total: prog.total, what, elapsed: fmtDuration(elapsed) }) +
+        (prog.done > 0 ? t('export.progressRemaining', { eta: fmtDuration(eta), bytes: fmtBytes(prog.bytes) }) : ''),
       prog.total ? prog.done / prog.total : 0,
       true,
     );
@@ -360,11 +362,11 @@ export async function startExport(): Promise<void> {
       },
     });
     if (!result.cancelled) s.exportResult = result;
-    store.toast(result.cancelled ? result.summary : `导出完成，用时 ${fmtDuration(result.elapsedMs / 1000)}`, result.cancelled ? 'info' : 'ok');
+    store.toast(result.cancelled ? result.summary : t('export.doneToast', { time: fmtDuration(result.elapsedMs / 1000) }), result.cancelled ? 'info' : 'ok');
     if (!result.cancelled && s.prefs.notifyDone && result.elapsedMs > 5000) remind();
   } catch (err) {
     const msg = (err as Error).message;
-    store.toast(/取消/.test(msg) ? msg : `导出失败：${msg}`, /取消/.test(msg) ? 'info' : 'bad');
+    store.toast(/取消/.test(msg) ? msg : t('export.failed', { msg }), /取消/.test(msg) ? 'info' : 'bad');
   } finally {
     clearInterval(ticker);
     s.exporting = false;

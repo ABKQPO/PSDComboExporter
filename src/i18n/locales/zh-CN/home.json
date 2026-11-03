@@ -1,0 +1,16 @@
+﻿{
+    "home.recent":  "最近打开",
+    "home.empty":  "还没有打开过文件。打开一个 PSD 后，它会出现在这里。",
+    "home.clear":  "清空记录",
+    "home.clearConfirm":  "清空最近打开的记录？（不影响已保存的选项组设置）",
+    "home.clearHint":  "在设置里可以修改显示数量",
+    "home.more":  "设置显示数量",
+    "home.remove":  "从列表移除",
+    "home.detail":  "{w}×{h} · {layers} 个图层 · {rules} 个选项组",
+    "home.reopen":  "重新选择 {name} 打开",
+    "home.reopenToast":  "请选择 {name}，已保存的选项组会自动恢复",
+    "home.timeNow":  "刚刚",
+    "home.timeMinutes":  "{n} 分钟前",
+    "home.timeHours":  "{n} 小时前",
+    "home.timeDays":  "{n} 天前"
+}

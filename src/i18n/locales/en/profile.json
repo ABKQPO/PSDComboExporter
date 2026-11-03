@@ -1,0 +1,7 @@
+{
+  "profile.photoshop": "Photoshop",
+  "profile.procreate": "Procreate",
+  "profile.painter": "Other painting apps (SAI / ibisPaint / MediBang, etc.)",
+  "profile.gpuTrunc": "Mobile GPU (truncation)",
+  "profile.gpuU8": "Mobile GPU (8-bit per layer)"
+}

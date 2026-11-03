@@ -1,0 +1,254 @@
+.home {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+  padding: 40px clamp(20px, 5vw, 72px);
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.home-inner {
+  display: flex;
+  align-items: stretch;
+  gap: 56px;
+  width: 100%;
+  max-width: 1180px;
+  min-height: 0;
+  /* let the recent list keep a real height on short windows */
+  height: 100%;
+  max-height: 760px;
+  margin: 0 auto;
+}
+
+.home-brand {
+  flex: 0 0 auto;
+  width: min(34%, 320px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+}
+
+.home-logo {
+  width: 132px;
+  height: 132px;
+  border-radius: 30px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  user-select: none;
+}
+
+.home-title {
+  margin: 4px 0 0;
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.home-sub {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.7;
+  max-width: 280px;
+}
+
+.home-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.home-open {
+  min-height: 42px;
+  padding: 10px 24px;
+  font-size: 15px;
+}
+
+.home-drop {
+  margin-top: 2px;
+}
+
+.home-recent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.home-recent-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.home-recent-title {
+  font-weight: 650;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+/* scrolls when more entries are configured than fit */
+.home-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.home-empty {
+  padding: 24px 0;
+}
+
+.home-recent-foot {
+  display: flex;
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: rgba(31, 33, 44, 0.72);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  flex: none;
+}
+
+.recent-item:hover {
+  background: rgba(41, 44, 58, 0.9);
+  border-color: var(--line-2);
+}
+
+.recent-thumb {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #10121a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recent-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recent-thumb-mark {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  letter-spacing: 0.5px;
+}
+
+.recent-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recent-name {
+  font-size: 13.5px;
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-detail,
+.recent-when {
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-remove {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--text-faint);
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0;
+}
+
+.recent-item:hover .recent-remove {
+  opacity: 1;
+}
+
+.recent-remove:hover {
+  background: rgba(242, 96, 106, 0.16);
+  color: var(--bad);
+}
+
+.home-back {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+}
+
+.home-back:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 860px) {
+  .home {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 24px 16px;
+    overflow-y: auto;
+  }
+  .home-inner {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    height: auto;
+    max-height: none;
+  }
+  .home-brand {
+    width: 100%;
+    align-items: center;
+    text-align: center;
+    justify-content: flex-start;
+  }
+  .home-logo {
+    width: 88px;
+    height: 88px;
+    border-radius: 22px;
+  }
+  .home-sub {
+    max-width: 320px;
+  }
+  .home-recent {
+    width: 100%;
+    flex: 0 1 auto;
+    max-height: 50vh;
+  }
+}

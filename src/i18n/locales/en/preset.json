@@ -1,0 +1,22 @@
+{
+  "preset.smart": "Smart detection (recommended)",
+  "preset.smartHint": "Build option groups from folders: choose one variant from each folder",
+  "preset.face": "Change expressions only",
+  "preset.faceHint": "Only groups named like face, eyes, or mouth participate; other groups keep their current selection",
+  "preset.optional": "Every group can be skipped",
+  "preset.optionalHint": "Change every required group to optional, adding a “none” choice",
+  "preset.mutex": "Exclusion example",
+  "preset.mutexHint": "Connect options from two groups with an exclusion so they cannot appear together",
+  "preset.require": "Dependency example",
+  "preset.requireHint": "Add a dependency: whenever A appears, B must also appear",
+  "preset.blank": "Blank canvas",
+  "preset.blankHint": "Clear all nodes and build your own workflow",
+  "preset.smartDone": "Built {count} option groups from smart detection",
+  "preset.noFaceGroups": "No option groups named like face, eyes, or mouth were found",
+  "preset.faceDone": "Only {groups} will change; other groups keep their current selection",
+  "preset.optionalDone": "Changed {count} groups to optional",
+  "preset.noExclusiveGroups": "No required groups were found",
+  "preset.twoGroupsRequired": "At least two groups with two or more options are required. Use Smart detection or drag layers to create groups first.",
+  "preset.mutexDone": "Example: “{a}” and “{b}” cannot appear in the same image. Add more option ports to this node to allow at most one.",
+  "preset.requireDone": "Example: whenever “{a}” appears, “{b}” must also appear"
+}

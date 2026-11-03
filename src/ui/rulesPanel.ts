@@ -6,30 +6,16 @@
 import type { Rule, RuleKind } from '../core/model';
 import { choiceCount, MULTI_LIMIT } from '../core/rules';
 import * as store from './store';
+import { t } from '../i18n';
 import { h } from './dom';
 
-export const KIND_INFO: Record<RuleKind, { label: string; hint: string; example: string }> = {
-  exclusive: {
-    label: '必选一项',
-    hint: '组内互斥：每张图必须且只能出现其中一个选项。',
-    example: '角色 A / B / C',
-  },
-  optional: {
-    label: '可选一项',
-    hint: '组内互斥，但也可以一个都不选（相当于多一个「无」）。',
-    example: '帽子 / 眼镜 / 无',
-  },
-  multi: {
-    label: '可多选',
-    hint: '选项之间不互斥，每个选项单独开/关，所有子集都会参与组合。',
-    example: '装饰 A、B 可同时出现',
-  },
-  fixed: {
-    label: '固定显示',
-    hint: '所有选项始终显示，不参与组合（即使它们在 PSD 里是隐藏的）。',
-    example: '背景、Logo',
-  },
-};
+export const KIND_INFO = new Proxy({} as Record<RuleKind, { label: string; hint: string; example: string }>, {
+  get: (_target, kind: RuleKind) => ({
+    label: t(`rules.${kind === 'exclusive' ? 'required' : kind}`),
+    hint: t(`rules.${kind === 'exclusive' ? 'required' : kind}Hint`),
+    example: t(`rules.${kind === 'exclusive' ? 'required' : kind}Example`),
+  }),
+});
 
 /** "Settings of this file were restored" notice with a one-click fresh start. */
 export function renderRestoreNotice(): HTMLElement | null {
@@ -39,17 +25,17 @@ export function renderRestoreNotice(): HTMLElement | null {
   return h(
     'div',
     { class: 'notice info restore' },
-    h('div', null, h('b', null, '已恢复上次对这个文件的设置'), `：${info.rules} 个选项组、${info.constraints} 条规则，以及显示改动和导出设置。`),
+    h('div', null, h('b', null, t('rules.restored')), t('rules.restoredDetail', { rules: info.rules, constraints: info.constraints })),
     h(
       'div',
       { class: 'row wrap', style: 'gap:6px;margin-top:6px' },
-      h('button', { class: 'btn small', onclick: () => store.startFresh(false) }, '不要，重新开始'),
-      h('button', { class: 'btn small ghost', onclick: () => store.dismissRestored() }, '保留'),
+      h('button', { class: 'btn small', onclick: () => store.startFresh(false) }, t('rules.restoreNo')),
+      h('button', { class: 'btn small ghost', onclick: () => store.dismissRestored() }, t('rules.restoreKeep')),
       h(
         'label',
         { class: 'row', style: 'gap:4px;font-size:12px' },
         h('input', { type: 'checkbox', checked: !s.autoRestore, onchange: (e: Event) => store.setAutoRestore(!(e.target as HTMLInputElement).checked) }),
-        '以后导入时不自动恢复',
+        t('rules.restoreNever'),
       ),
     ),
   );
@@ -66,8 +52,8 @@ export function renderRulesPanel(): HTMLElement {
     h(
       'div',
       { class: 'guide' },
-      h('b', null, '第 2 步：设置每个选项组的规则。'),
-      ' 点击选项可以在预览区实时查看；勾选「参与组合」的组会做笛卡尔积（角色 × 服装 × 表情），不参与的组在所有导出图里固定使用当前选中的选项。',
+      h('b', null, t('rules.step3')),
+      t('rules.step3Detail'),
     ),
   );
 
@@ -80,21 +66,21 @@ export function renderRulesPanel(): HTMLElement {
     h(
       'span',
       { class: 'pill' },
-      factors.length ? `组合数 ${factors.join(' × ')} = ${res?.rawCount ?? 0}` : '还没有参与组合的选项组',
+      factors.length ? t('rules.factors', { expr: factors.join(' × '), n: res?.rawCount ?? 0 }) : t('rules.noFactors'),
     ),
   );
-  if (res) head.appendChild(h('span', { class: res.combos.length ? 'pill ok' : 'pill bad' }, `有效 ${res.combos.length}`));
+  if (res) head.appendChild(h('span', { class: res.combos.length ? 'pill ok' : 'pill bad' }, t('rules.valid', { n: res.combos.length })));
   head.appendChild(h('span', { class: 'spacer' }));
-  head.appendChild(h('button', { class: 'btn small', onclick: () => store.setNodeEditor(true), title: '像 Blender 节点一样连线：选项组 → 组合 × → 导出，拖线设置互斥' }, '节点视图'));
-  head.appendChild(h('button', { class: 'btn small', onclick: () => store.resetSelection(), title: '每组回到默认选项' }, '重置选择'));
-  head.appendChild(h('button', { class: 'btn small', onclick: () => store.addEmptyRule() }, '+ 空选项组'));
-  if (p.rules.length) head.appendChild(h('button', { class: 'btn small danger', onclick: () => store.clearRules(), title: '删除全部选项组（和引用它们的规则）' }, '清空全部'));
+  head.appendChild(h('button', { class: 'btn small', onclick: () => store.setNodeEditor(true), title: t('rules.nodeHint') }, t('rules.nodeView')));
+  head.appendChild(h('button', { class: 'btn small', onclick: () => store.resetSelection(), title: t('rules.resetSelection') }, t('rules.reset')));
+  head.appendChild(h('button', { class: 'btn small', onclick: () => store.addEmptyRule() }, t('rules.addEmpty')));
+  if (p.rules.length) head.appendChild(h('button', { class: 'btn small danger', onclick: () => store.clearRules(), title: t('rules.clearAll') }, t('rules.clear')));
   root.appendChild(head);
 
   const v = store.currentViolations();
   if (v.length) {
     root.appendChild(
-      h('div', { class: 'notice bad' }, `当前预览的组合违反规则：${v[0]}。它不会被导出。`),
+      h('div', { class: 'notice bad' }, t('rules.violation', { why: v[0] })),
     );
   }
 
@@ -103,9 +89,9 @@ export function renderRulesPanel(): HTMLElement {
       h(
         'div',
         { class: 'empty' },
-        h('div', { class: 'big' }, '还没有选项组'),
-        h('div', { class: 'hint' }, '到「图层」页勾选图层，或在图层组上点「⇢ 子项作选项」。图层名里带 [标签] 的 PSD 会自动生成选项组。'),
-        h('button', { class: 'btn primary', onclick: () => store.setTab('layers') }, '去选择图层'),
+        h('div', { class: 'big' }, t('rules.empty')),
+        h('div', { class: 'hint' }, t('rules.emptyHint')),
+        h('button', { class: 'btn primary', onclick: () => store.setTab('layers') }, t('rules.goLayers')),
       ),
     );
   }
@@ -122,10 +108,10 @@ export function renderRulesPanel(): HTMLElement {
           {
             class: 'btn ghost small',
             onclick: () => {
-              if (confirm('按图层名中的 [标签] 重新生成选项组？当前的选项组和互斥规则会被替换。')) store.rebuildFromTags();
+              if (confirm(t('rules.rebuildConfirm'))) store.rebuildFromTags();
             },
           },
-          '按 [标签] 重新生成',
+          t('rules.rebuild'),
         ),
       ),
     );
@@ -143,15 +129,15 @@ function renderRule(rule: Rule, i: number, total: number): HTMLElement {
     h(
       'div',
       { class: 'updown' },
-      h('button', { class: 'btn ghost tiny', disabled: i === 0, title: '上移（影响文件名顺序）', onclick: () => store.moveRule(rule.id, -1) }, '▲'),
-      h('button', { class: 'btn ghost tiny', disabled: i === total - 1, title: '下移', onclick: () => store.moveRule(rule.id, 1) }, '▼'),
+      h('button', { class: 'btn ghost tiny', disabled: i === 0, title: t('rules.moveUp'), onclick: () => store.moveRule(rule.id, -1) }, '▲'),
+      h('button', { class: 'btn ghost tiny', disabled: i === total - 1, title: t('rules.moveDown'), onclick: () => store.moveRule(rule.id, 1) }, '▼'),
     ),
   );
   head.appendChild(
     h('input', {
       class: 'rule-title',
       value: rule.name,
-      title: '点击重命名（会出现在导出文件名里）',
+      title: t('rules.rename'),
       onchange: (e: Event) => store.renameRule(rule.id, (e.target as HTMLInputElement).value),
     }),
   );
@@ -160,12 +146,12 @@ function renderRule(rule: Rule, i: number, total: number): HTMLElement {
       'button',
       {
         class: 'btn ghost small danger',
-        title: '删除这个选项组（图层本身不受影响）',
+        title: t('rules.deleteGroup'),
         onclick: () => {
-          if (confirm(`删除选项组「${rule.name}」？相关的互斥规则也会一起删除。`)) store.deleteRule(rule.id);
+          if (confirm(t('rules.deleteConfirm', { name: rule.name }))) store.deleteRule(rule.id);
         },
       },
-      '删除',
+      t('rules.delete'),
     ),
   );
   card.appendChild(head);
@@ -175,16 +161,16 @@ function renderRule(rule: Rule, i: number, total: number): HTMLElement {
     seg.appendChild(
       h(
         'button',
-        { class: rule.kind === k ? 'on' : '', title: `${KIND_INFO[k].hint}（例：${KIND_INFO[k].example}）`, onclick: () => store.setRuleKind(rule.id, k) },
+        { class: rule.kind === k ? 'on' : '', title: t('rules.kindHint', { hint: KIND_INFO[k].hint, example: KIND_INFO[k].example }), onclick: () => store.setRuleKind(rule.id, k) },
         KIND_INFO[k].label,
       ),
     );
   }
   card.appendChild(seg);
-  card.appendChild(h('div', { class: 'hint rule-hint' }, `${KIND_INFO[rule.kind].hint} 例：${KIND_INFO[rule.kind].example}`));
+  card.appendChild(h('div', { class: 'hint rule-hint' }, t('rules.kindHint', { hint: KIND_INFO[rule.kind].hint, example: KIND_INFO[rule.kind].example })));
   if (rule.kind !== 'fixed') {
     const f = store.ruleFactor(rule);
-    card.appendChild(h('div', { class: 'hint' + (f.n > 16 ? ' warn-text' : '') }, `组合数 ×${f.n}：${f.why}${rule.enabled ? '' : '（不参与组合，不乘）'}`));
+    card.appendChild(h('div', { class: 'hint' + (f.n > 16 ? ' warn-text' : '') }, t('rules.comboCount', { n: f.n, why: f.why, note: rule.enabled ? '' : t('rules.notInProduct') })));
   }
   const warn = store.ruleWarning(rule);
   if (warn) {
@@ -205,13 +191,13 @@ function renderRule(rule: Rule, i: number, total: number): HTMLElement {
           onchange: (e: Event) => store.setRuleEnabled(rule.id, (e.target as HTMLInputElement).checked),
         }),
         rule.enabled
-          ? h('span', null, `参与组合（笛卡尔积）：提供 ${n} 种取值`)
-          : h('span', null, '不参与组合：所有导出图固定使用下面选中的选项'),
+          ? h('span', null, t('rules.inProduct', { n }))
+          : h('span', null, t('rules.outProduct')),
       ),
     );
   }
   if (rule.kind === 'multi' && rule.options.length > MULTI_LIMIT) {
-    card.appendChild(h('div', { class: 'notice warn' }, `可多选最多枚举前 ${MULTI_LIMIT} 个选项（${2 ** MULTI_LIMIT} 种子集），其余选项不参与组合。`));
+    card.appendChild(h('div', { class: 'notice warn' }, t('rules.multiLimit', { n: MULTI_LIMIT, subsets: 2 ** MULTI_LIMIT })));
   }
 
   const opts = h('div', { class: 'rule-options' });
@@ -223,20 +209,20 @@ function renderRule(rule: Rule, i: number, total: number): HTMLElement {
       'div',
       {
         class: 'opt' + (on ? ' on' : '') + (conflict ? ' blocked' : '') + (empty ? ' empty' : '') + (rule.kind === 'fixed' ? ' locked' : ''),
-        title: empty ? '这个选项还没有关联图层，点 ✎ 选择图层' : conflict ? `选它会冲突：${conflict}` : `${opt.layerIds.length} 个图层`,
+        title: empty ? '这个选项还没有关联图层，点 ✎ 选择图层' : conflict ? t('rules.optionConflict', { why: conflict }) : t('rules.layers', { n: opt.layerIds.length }),
         onclick: () => {
           if (rule.kind !== 'fixed') store.clickOption(rule.id, opt.id);
         },
       },
       h('span', { class: 'dot' + (rule.kind === 'multi' ? ' sq' : '') }),
       h('span', { class: 'opt-name' }, opt.name),
-      opt.layerIds.length > 1 ? h('span', { class: 'count' }, `${opt.layerIds.length}层`) : null,
-      empty ? h('span', { class: 'count warn' }, '无图层') : null,
+      opt.layerIds.length > 1 ? h('span', { class: 'count' }, t('rules.layersShort', { n: opt.layerIds.length })) : null,
+      empty ? h('span', { class: 'count warn' }, t('rules.noLayers')) : null,
       h(
         'button',
         {
           class: 'opt-act',
-          title: '重命名 / 选择图层',
+          title: t('rules.editOption'),
           onclick: (e: Event) => {
             e.stopPropagation();
             s.editingOption = { ruleId: rule.id, optionId: opt.id };
@@ -249,7 +235,7 @@ function renderRule(rule: Rule, i: number, total: number): HTMLElement {
         'button',
         {
           class: 'opt-act',
-          title: '删除选项',
+          title: t('rules.deleteOption'),
           onclick: (e: Event) => {
             e.stopPropagation();
             store.deleteOption(rule.id, opt.id);
@@ -266,7 +252,7 @@ function renderRule(rule: Rule, i: number, total: number): HTMLElement {
         'div',
         {
           class: 'opt none' + (selected.length === 0 ? ' on' : ''),
-          title: '一个都不选',
+          title: t('rules.selectNone'),
           onclick: () => {
             if (selected.length) store.clickOption(rule.id, selected[0]);
           },
@@ -276,7 +262,7 @@ function renderRule(rule: Rule, i: number, total: number): HTMLElement {
       ),
     );
   }
-  opts.appendChild(h('button', { class: 'btn ghost small', onclick: () => store.addOption(rule.id) }, '+ 选项'));
+  opts.appendChild(h('button', { class: 'btn ghost small', onclick: () => store.addOption(rule.id) }, t('rules.addOption')));
   card.appendChild(opts);
   return card;
 }

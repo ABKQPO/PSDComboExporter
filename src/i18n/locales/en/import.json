@@ -1,0 +1,9 @@
+{
+  "import.reading": "Reading {name} ({size})…",
+  "import.parsing": "Parsing the layer structure…",
+  "import.decoding": "Decoding layer {done}/{total}: {label}",
+  "import.unsupported": "{n} layers use features that cannot be reproduced exactly ({features}); see the Layers page.",
+  "import.loaded": "Loaded {name}: {w}×{h}, {layers} layers/groups in {seconds}s",
+  "import.outOfMemory": "Not enough memory to open this PSD: {msg}",
+  "import.failed": "Could not parse the file: {msg}"
+}

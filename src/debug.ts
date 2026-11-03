@@ -4,6 +4,8 @@
  */
 
 import * as store from './ui/store';
+import { exportConfigText, importConfigText } from './ui/configIO';
+import { applyPreset } from './ui/presets';
 import { engine } from './engine/client';
 import { runExport } from './core/exporter';
 import { bytesToBase64, createTarget, type ExportTarget } from './core/platform';
@@ -422,7 +424,7 @@ export function installDebugApi(host: any): void {
         return null;
       };
       // 1. clear -> undo -> redo -> undo (start from the auto-detect example so there is something)
-      store.applyPreset('smart');
+      applyPreset('smart');
       await sleep(300);
       const n0 = p().rules.length;
       btn('清空').click();
@@ -527,7 +529,7 @@ export function installDebugApi(host: any): void {
       }
       // 6. presets + notes
       const c0 = p().constraints.length;
-      store.applyPreset('mutex');
+      applyPreset('mutex');
       await sleep(200);
       out.presetMutex = p().constraints.length === c0 + 1;
       btn('+ 添加').click();
@@ -536,7 +538,7 @@ export function installDebugApi(host: any): void {
       await sleep(300);
       out.noteAdded = (p().nodeNotes ?? []).length === 1 && !!document.querySelector('.ne-node.note');
       // 7. config round trip keeps groups, rules, bundles, notes
-      const text = store.exportConfigText();
+      const text = exportConfigText();
       const sig = () =>
         JSON.stringify([
           p().rules.map((r) => [r.name, r.options.length]),
@@ -547,7 +549,7 @@ export function installDebugApi(host: any): void {
       const want = sig();
       store.clearCanvas();
       await sleep(200);
-      store.importConfigText(text);
+      importConfigText(text);
       await sleep(300);
       out.configRoundTrip = sig() === want;
       out.edges = edgeAlignment().maxError;
@@ -940,9 +942,9 @@ export function installDebugApi(host: any): void {
       store.setExportScope('valid');
       out.scopeValid = store.selectedCombos().length;
       store.setExportScope('selected');
-      const text = store.exportConfigText();
-      store.importConfigText(text);
-      out.configRoundTrip = s.result!.combos.length === valid && store.exportConfigText().length === text.length;
+      const text = exportConfigText();
+      importConfigText(text);
+      out.configRoundTrip = s.result!.combos.length === valid && exportConfigText().length === text.length;
       out.ok =
         out.eyeOverrides === 0 &&
         (out.searchRows as number) >= 1 &&

@@ -7,6 +7,7 @@ import type { Constraint, LayerNode, Target } from '../core/model';
 import { rootsTopFirst } from '../core/project';
 import * as store from './store';
 import { h } from './dom';
+import { t as tr } from '../i18n';
 
 interface Preset {
   key: NonNullable<Constraint['preset']>;
@@ -19,38 +20,38 @@ interface Preset {
 const PRESETS: Preset[] = [
   {
     key: 'crossGroupMutex',
-    label: '跨组互斥',
+    label: 'crossGroup',
     kind: 'mutex',
     target: 'rule',
-    hint: '两个选项组不能同时有选中项。例：「中文字幕」组与「英文字幕」组只能出现一个。',
+    hint: 'crossGroup',
   },
   {
     key: 'multiMutex',
-    label: '多项互斥',
+    label: 'multiMutex',
     kind: 'mutex',
     target: 'option',
-    hint: 'A、B、C…最多只出现一个，可以无限追加，不用拆成多个组。例：三种尾巴分散在不同组里，但只能出现一种。',
+    hint: 'multiMutex',
   },
   {
     key: 'conditionalExclude',
-    label: '条件排除',
+    label: 'conditionalExclude',
     kind: 'mutex',
     target: 'option',
-    hint: '某个选项不能搭配另一个选项。例：角色 A 不允许搭配服装 C。',
+    hint: 'conditionalExclude',
   },
   {
     key: 'absoluteExclude',
-    label: '完全排除',
+    label: 'absoluteExclude',
     kind: 'mutex',
     target: 'layer',
-    hint: '指定两个图层永远不能同时显示，不管它们是怎么被打开的。',
+    hint: 'absoluteExclude',
   },
   {
     key: 'requires',
-    label: '依赖',
+    label: 'requires',
     kind: 'require',
     target: 'option',
-    hint: '选了 A 就必须同时有 B，否则这个组合不导出。例：选了「睫毛」必须有「眼线」。',
+    hint: 'requires',
   },
 ];
 
@@ -66,12 +67,12 @@ export function renderConstraintsPanel(): HTMLElement {
     h(
       'div',
       { class: 'guide' },
-      h('b', null, '第 3 步（可选）：设置跨组规则。'),
+      h('b', null, tr('constraints.step')),
       h(
         'div',
         { class: 'two-kinds' },
-        h('div', null, h('b', null, '组内互斥'), '：同一个选项组里只能选一个——由选项组的「必选一项 / 可选一项」决定，不用在这里设置。'),
-        h('div', null, h('b', null, '跨组互斥'), '：不同选项组之间的冲突，在这里添加。违反规则的组合不会被导出，会在「组合」页列出原因。'),
+        h('div', null, h('b', null, tr('constraints.withinGroup')), `: ${tr('constraints.withinGroupHint')}`),
+        h('div', null, h('b', null, tr('constraints.crossGroup')), `: ${tr('constraints.crossGroupHint')}`),
       ),
     ),
   );
@@ -82,19 +83,19 @@ export function renderConstraintsPanel(): HTMLElement {
       h(
         'button',
         { class: 'preset', onclick: () => store.addConstraint(pr.kind, pr.target, pr.key) },
-        h('b', null, `+ ${pr.label}`),
-        h('span', null, pr.hint),
+        h('b', null, `+ ${tr(`constraints.${pr.label}.label`)}`),
+        h('span', null, tr(`constraints.${pr.hint}.hint`)),
       ),
     );
   }
   root.appendChild(add);
 
   if (p.rules.length === 0) {
-    root.appendChild(h('div', { class: 'notice info' }, '先在「选项组」页创建选项组，才能设置跨组规则。'));
+    root.appendChild(h('div', { class: 'notice info' }, tr('constraints.noGroups')));
   }
 
   if (p.constraints.length) {
-    root.appendChild(h('div', { class: 'section-title' }, `已设置 ${p.constraints.length} 条规则`));
+    root.appendChild(h('div', { class: 'section-title' }, tr('constraints.count', { n: p.constraints.length })));
     for (const c of p.constraints) root.appendChild(renderConstraint(c));
   }
   return root;
@@ -134,16 +135,16 @@ function targetPicker(c: Constraint, i: number): HTMLElement {
       'select',
       {
         class: 'gran',
-        title: '粒度',
+        title: tr('constraints.granularity'),
         onchange: (e: Event) => store.setConstraintTarget(c.id, i, { kind: (e.target as HTMLSelectElement).value as Target['kind'] }),
       },
-      h('option', { value: 'rule', selected: t.kind === 'rule' }, '整组'),
-      h('option', { value: 'option', selected: t.kind === 'option' }, '选项'),
-      h('option', { value: 'layer', selected: t.kind === 'layer' }, '图层'),
+      h('option', { value: 'rule', selected: t.kind === 'rule' }, tr('constraints.wholeGroup')),
+      h('option', { value: 'option', selected: t.kind === 'option' }, tr('constraints.option')),
+      h('option', { value: 'layer', selected: t.kind === 'layer' }, tr('tab.layers')),
     ),
   );
 
-  const opts: HTMLElement[] = [h('option', { value: `${t.kind}:` }, '— 请选择 —')];
+  const opts: HTMLElement[] = [h('option', { value: `${t.kind}:` }, tr('constraints.choose'))];
   if (t.kind === 'rule') {
     for (const r of p.rules) opts.push(h('option', { value: `rule:${r.id}`, selected: cur === `rule:${r.id}` }, r.name));
   } else if (t.kind === 'option') {
@@ -185,24 +186,24 @@ function renderConstraint(c: Constraint): HTMLElement {
       h('input', {
         type: 'checkbox',
         checked: c.enabled,
-        title: '启用 / 停用',
+          title: tr('constraints.toggle'),
         onchange: (e: Event) => store.updateConstraint(c.id, { enabled: (e.target as HTMLInputElement).checked }),
       }),
-      h('b', null, multi ? '多项互斥' : pr.label),
+      h('b', null, multi ? tr('constraints.multiMutex.label') : tr(`constraints.${pr.label}.label`)),
       h(
         'select',
         {
           class: 'small-select',
           onchange: (e: Event) => store.updateConstraint(c.id, { kind: (e.target as HTMLSelectElement).value as Constraint['kind'] }),
         },
-        h('option', { value: 'mutex', selected: c.kind === 'mutex' }, multi ? '最多出现一个' : '不能同时出现'),
-        h('option', { value: 'require', selected: c.kind === 'require' }, 'A 需要 B'),
+        h('option', { value: 'mutex', selected: c.kind === 'mutex' }, multi ? tr('constraints.atMostOne') : tr('constraints.cannotTogether')),
+        h('option', { value: 'require', selected: c.kind === 'require' }, tr('constraints.aNeedsB')),
       ),
       h('span', { class: 'spacer' }),
       incomplete
-        ? h('span', { class: 'pill warn' }, '未设置完整')
-        : h('span', { class: removed ? 'pill warn' : 'pill' }, removed ? `排除了 ${removed} 个组合` : '暂未排除任何组合'),
-      h('button', { class: 'btn ghost small danger', title: '删除规则', onclick: () => store.deleteConstraint(c.id) }, '删除'),
+        ? h('span', { class: 'pill warn' }, tr('constraints.incomplete'))
+        : h('span', { class: removed ? 'pill warn' : 'pill' }, removed ? tr('constraints.removed', { n: removed }) : tr('constraints.noneRemoved')),
+      h('button', { class: 'btn ghost small danger', title: tr('common.delete'), onclick: () => store.deleteConstraint(c.id) }, tr('common.delete')),
     ),
   );
   if (c.kind === 'mutex') {

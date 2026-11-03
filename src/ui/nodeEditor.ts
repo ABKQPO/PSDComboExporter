@@ -15,14 +15,28 @@
  */
 
 import * as store from './store';
+import { exportConfigText, importConfigText } from './configIO';
 import { h } from './dom';
 import { KIND_INFO } from './rulesPanel';
+import { ports } from './nodePorts';
+import { autoLayout, type Pos, type Size } from './nodeLayout';
+import {
+  node,
+  port,
+  groupNode,
+  targetName,
+  constraintNode,
+  combineNode,
+  noteNode,
+  bundleNode,
+  exportNode,
+} from './nodeCards';
 import { startExport } from './exportPanel';
+import { presets, applyPreset } from './presets';
 import { openTextFile, saveTextFile } from '../core/platform';
 import type { Constraint, LayerNode, NodeBundle, NodeNote, Project, Rule, RuleKind, Target } from '../core/model';
-
-type Pos = { x: number; y: number };
-type Size = { w: number; h: number };
+import { t, tList } from '../i18n';
+import { nextSearchIndex, searchNodes } from './nodeSearch';
 
 let root: HTMLElement | null = null;
 let viewport: HTMLElement;
@@ -44,13 +58,16 @@ let drawerMulti = false;
 let drawerAnchor: string | null = null;
 let undoBtn: HTMLButtonElement;
 let redoBtn: HTMLButtonElement;
+let nodeSearchInput: HTMLInputElement;
+let nodeSearchStatus: HTMLElement;
+let nodeSearchResults: HTMLElement[] = [];
+let nodeSearchIndex = -1;
 
 const view = { x: 24, y: 24, s: 1 };
 let busy = false; // dragging something: rebuild later
 let rebuildPending = false;
 let fitPending = true;
 let edges: { from: string; to: string; cls: string }[] = [];
-const ports = new Map<string, HTMLElement>();
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const GAP = 26;
@@ -69,6 +86,7 @@ export function syncNodeEditor(dirty: boolean): void {
   if (!root) build();
   if (!root!.isConnected) {
     document.body.appendChild(root!);
+    toggleDrawer(true);
     dirty = true;
   }
   if (dirty) {
@@ -83,25 +101,44 @@ export function syncNodeEditor(dirty: boolean): void {
 function build(): void {
   root = h('div', { class: 'node-editor' });
   const bar = h('div', { class: 'ne-bar' });
-  bar.appendChild(h('b', { class: 'ne-title' }, '节点'));
+  bar.appendChild(h('b', { class: 'ne-title' }, t('app.node')));
   countPill = h('span', { class: 'pill ok' }, '');
   bar.appendChild(countPill);
-  undoBtn = h('button', { class: 'btn small', title: '撤回（Ctrl+Z）', onclick: () => store.undo() }, '↶', h('span', { class: 'ne-lbl' }, ' 撤回')) as HTMLButtonElement;
-  redoBtn = h('button', { class: 'btn small', title: '重做（Ctrl+Y / Ctrl+Shift+Z）', onclick: () => store.redo() }, '↷', h('span', { class: 'ne-lbl' }, ' 重做')) as HTMLButtonElement;
+  nodeSearchInput = h('input', {
+    type: 'search',
+    class: 'ne-node-search',
+    placeholder: t('node.searchNodes'),
+    'aria-label': t('node.searchNodes'),
+    oninput: () => updateNodeSearch(),
+    onkeydown: (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        nodeSearchInput.value = '';
+        updateNodeSearch();
+      } else if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        focusSearchResult(e.key === 'ArrowUp' ? -1 : 1);
+      }
+    },
+  });
+  bar.appendChild(nodeSearchInput);
+  nodeSearchStatus = h('span', { class: 'ne-search-status', 'aria-live': 'polite' });
+  bar.appendChild(nodeSearchStatus);
+  undoBtn = h('button', { class: 'btn small', title: t('node.undoTitle'), onclick: () => store.undo() }, '↶', h('span', { class: 'ne-lbl' }, ` ${t('node.undo')}`)) as HTMLButtonElement;
+  redoBtn = h('button', { class: 'btn small', title: t('node.redoTitle'), onclick: () => store.redo() }, '↷', h('span', { class: 'ne-lbl' }, ` ${t('node.redo')}`)) as HTMLButtonElement;
   bar.appendChild(undoBtn);
   bar.appendChild(redoBtn);
-  bar.appendChild(h('button', { class: 'btn small', title: '清空画布上的全部节点（可以撤回）', onclick: () => store.clearCanvas() }, '清空'));
+  bar.appendChild(h('button', { class: 'btn small', title: t('node.clearTitle'), onclick: () => store.clearCanvas() }, t('common.clear')));
   bar.appendChild(h('span', { class: 'ne-sep' }));
-  bar.appendChild(h('button', { class: 'btn small', title: '打开图层列表：把图层 / 文件夹拖到选项组上', onclick: () => toggleDrawer() }, '图层'));
-  bar.appendChild(h('button', { class: 'btn small', title: '添加节点：选项组 / 互斥 / 依赖 / 便签 / 预览', onclick: (e: Event) => addMenu(e.currentTarget as HTMLElement) }, '+ 添加'));
-  bar.appendChild(h('button', { class: 'btn small', title: '常用的示例设置', onclick: (e: Event) => presetMenu(e.currentTarget as HTMLElement) }, '示例'));
-  bar.appendChild(h('button', { class: 'btn small ghost', title: '从 .json 配置文件导入（选项组、规则、节点位置…）', onclick: () => void importConfig() }, '导入'));
-  bar.appendChild(h('button', { class: 'btn small ghost', title: '把当前设置保存成 .json 配置文件，换一个 PSD 也能用', onclick: () => void exportConfig() }, '导出'));
+  bar.appendChild(h('button', { class: 'btn small', title: t('node.layersTitle'), onclick: () => toggleDrawer() }, t('tab.layers')));
+  bar.appendChild(h('button', { class: 'btn small', title: t('node.addTitle'), onclick: (e: Event) => addMenu(e.currentTarget as HTMLElement) }, t('node.add')));
+  bar.appendChild(h('button', { class: 'btn small', title: t('node.presetsTitle'), onclick: (e: Event) => presetMenu(e.currentTarget as HTMLElement) }, t('node.presets')));
+  bar.appendChild(h('button', { class: 'btn small ghost', title: t('node.importTitle'), onclick: () => void importConfig() }, t('app.import')));
+  bar.appendChild(h('button', { class: 'btn small ghost', title: t('node.exportTitle'), onclick: () => void exportConfig() }, t('tab.export')));
   bar.appendChild(h('span', { class: 'spacer' }));
-  bar.appendChild(h('button', { class: 'btn small ghost', title: '重新排列全部节点', onclick: () => ((fitPending = true), store.resetNodeLayout()) }, '自动排列'));
-  bar.appendChild(h('button', { class: 'btn small ghost', title: '缩放到能看到全部节点', onclick: () => fit() }, '适应'));
-  bar.appendChild(h('button', { class: 'btn small ghost', onclick: () => helpBox.classList.toggle('show') }, '怎么用'));
-  bar.appendChild(h('button', { class: 'btn small', onclick: () => store.setNodeEditor(false) }, '回到列表'));
+  bar.appendChild(h('button', { class: 'btn small ghost', title: t('node.autoArrangeTitle'), onclick: () => ((fitPending = true), store.resetNodeLayout()) }, t('node.autoArrange')));
+  bar.appendChild(h('button', { class: 'btn small ghost', title: t('node.fitTitle'), onclick: () => fit() }, t('node.fit')));
+  bar.appendChild(h('button', { class: 'btn small ghost', onclick: () => helpBox.classList.toggle('show') }, t('app.help')));
+  bar.appendChild(h('button', { class: 'btn small', onclick: () => store.setNodeEditor(false) }, t('node.backToList')));
   root.appendChild(bar);
 
   const body = h('div', { class: 'ne-body' });
@@ -113,7 +150,7 @@ function build(): void {
       h('input', {
         type: 'search',
         class: 'ne-search',
-        placeholder: '搜索图层…',
+        placeholder: t('node.searchLayers'),
         oninput: (e: Event) => {
           drawerQuery = (e.target as HTMLInputElement).value.trim().toLowerCase();
           renderDrawer();
@@ -123,24 +160,25 @@ function build(): void {
         'button',
         {
           class: 'btn small ne-multi',
-          title: '多选：点一下选中 / 取消，再拖其中一个 = 一起拖进去',
+          title: t('node.multiTitle'),
           onclick: () => {
             drawerMulti = !drawerMulti;
             if (!drawerMulti) drawerSel.clear();
             renderDrawer();
           },
         },
-        '多选',
+        t('node.multi'),
       )),
-      h('button', { class: 'ne-x', title: '收起', onclick: () => toggleDrawer(false) }, '✕'),
+      h('button', { class: 'ne-x', title: t('node.drawerClose'), onclick: () => toggleDrawer(false) }, '✕'),
     ),
   );
-  drawer.appendChild(h('div', { class: 'ne-drawer-hint' }, '拖到选项组上 = 加一个选项（文件夹整体算一个差分）；拖到空白处 = 新建选项组。按住 Ctrl 点 = 多选，Shift 点 = 连选；手机打开「多选」后点一下就是选中，再拖其中一个 = 一起拖'));
+  drawer.appendChild(h('div', { class: 'ne-drawer-hint' }, t('node.drawerHint')));
   drawerSelBar = h('div', { class: 'ne-selbar' });
   drawer.appendChild(drawerSelBar);
   drawerList = h('div', { class: 'ne-drawer-list' });
   drawer.appendChild(drawerList);
   body.appendChild(drawer);
+  drawer.classList.add('open');
 
   viewport = h('div', { class: 'ne-viewport' });
   world = h('div', { class: 'ne-world' });
@@ -157,20 +195,12 @@ function build(): void {
   helpBox = h(
     'div',
     { class: 'ne-help' },
-    h('b', null, '节点工作流'),
-    h('div', null, '• 「图层」打开图层列表：把图层或文件夹拖到选项组上 = 加一个选项（整个文件夹算一个差分）；拖到空白处 = 新建选项组。'),
-    h('div', null, '• 点选项组里的一行 = 选中它，左下角小图实时预览。✕ 删除选项 / 选项组，点一下组名就能改名。'),
-    h('div', null, '• 选项组标题右边的圆点连到「组合 ×」= 参与组合；「组合 ×」里会写清楚每组乘了几、为什么。'),
-    h('div', null, '• 从选项（或选项组标题）右边的圆点拖到另一个选项 / 选项组上，会问你要「互斥」还是「依赖」。互斥 = 放进去的东西在同一张图里最多出现一个，例如「鱼尾」和「长发」不能同框；依赖 = 有 A 时必须有 B。'),
-    h('div', null, '• 左上角：撤回 / 重做（Ctrl+Z / Ctrl+Y）、清空画布。「+ 添加」可以加选项组、互斥、依赖、便签、预览；「示例」一键套用常用设置；「导入 / 导出」保存或读取 .json 配置。'),
-    h('div', null, '• 图层包：几个图层一起显示、算一个选项。把图层拖进图层包，再把它右边的 ● 连到选项组左边的 ●，它就成了这个组的一个选项。'),
-    h('div', null, '• 图层列表多选：电脑按住 Ctrl 点 = 多选，Shift 点 = 连选；手机点「多选」再点图层。拖其中任意一个 = 一起拖进去，每个都是一个选项。'),
-    h('div', null, '• 断开连线：点一下线 →「断开」；或者按住线头的圆点把线拖走，放到空白处就断开，放到别处就改接过去。'),
-    h('div', null, '• 按住节点标题（⠿ 或名字）拖动节点；拖空白处平移；滚轮或双指缩放。'),
+    h('b', null, t('node.helpTitle')),
+    ...tList('node.helpLines').map((line) => h('div', null, `• ${line}`)),
   );
   root.appendChild(helpBox);
 
-  mini = h('canvas', { class: 'ne-mini', title: '当前选择的预览（点一下放大 / 缩小）' }) as HTMLCanvasElement;
+  mini = h('canvas', { class: 'ne-mini', title: t('node.previewTitle') }) as HTMLCanvasElement;
   viewport.appendChild(mini);
   ghost = h('div', { class: 'ne-ghost' });
   root.appendChild(ghost);
@@ -460,7 +490,7 @@ function presetMenu(btn: HTMLElement): void {
     a.x,
     a.y,
     '示例设置（都可以撤回）',
-    store.PRESETS.map((ps) => ({ label: ps.label, hint: ps.hint, run: () => ((fitPending = true), store.applyPreset(ps.key)) })),
+    presets().map((ps) => ({ label: ps.label, hint: ps.hint, run: () => ((fitPending = true), applyPreset(ps.key)) })),
   );
 }
 
@@ -500,7 +530,7 @@ function addBundleNode(): void {
 async function exportConfig(): Promise<void> {
   const p = store.state.project!;
   try {
-    const where = await saveTextFile(`${p.name.replace(/\.[^.]+$/, '')}-导出配置.json`, store.exportConfigText());
+    const where = await saveTextFile(`${p.name.replace(/\.[^.]+$/, '')}-导出配置.json`, exportConfigText());
     if (where !== null) store.toast(where ? `配置已保存：${where}` : '配置已保存', 'ok');
   } catch (err) {
     store.toast(`保存配置失败：${(err as Error).message}`, 'bad');
@@ -512,7 +542,7 @@ async function importConfig(): Promise<void> {
     const file = await openTextFile('.json');
     if (!file) return;
     fitPending = true;
-    store.importConfigText(file.text);
+    importConfigText(file.text);
   } catch (err) {
     store.toast(`导入配置失败：${(err as Error).message}`, 'bad');
   }
@@ -566,13 +596,14 @@ function rebuild(): void {
   for (const n of p.nodeNotes ?? []) frag.appendChild(noteNode(n));
   for (const b of p.nodeBundles ?? []) frag.appendChild(bundleNode(b));
   nodesHost.replaceChildren(frag);
+  updateNodeSearch();
   nodeSizes?.disconnect();
   for (const n of nodesHost.children) nodeSizes?.observe(n);
 
   // measure, then place: saved positions win, the rest is laid out without overlap
   const nodes = [...nodesHost.children] as HTMLElement[];
   const sizes = new Map<string, Size>(nodes.map((n) => [n.dataset.node!, { w: n.offsetWidth, h: n.offsetHeight }]));
-  const auto = autoLayout(p, sizes);
+  const auto = autoLayout(p, sizes, viewport.clientWidth, viewport.clientHeight, GAP);
   // notes / previews: a row under everything else
   const bottom = Math.max(0, ...Object.entries(auto).map(([id, q]) => q.y + (sizes.get(id)?.h ?? 0)));
   let nx = 0;
@@ -618,274 +649,6 @@ function rebuild(): void {
   renderDrawer();
 }
 
-function node(cls: string, id: string, target: string): HTMLElement {
-  return h('div', { class: `ne-node ${cls}`, 'data-node': id, 'data-target': target });
-}
-
-function port(key: string, side: 'in' | 'out', extra = ''): HTMLElement {
-  const el = h('span', { class: `ne-port ${side} ${extra}`, 'data-port': key });
-  ports.set(key, el);
-  return el;
-}
-
-function groupNode(r: Rule): HTMLElement {
-  const s = store.state;
-  const sel = s.selection[r.id] ?? [];
-  const f = store.ruleFactor(r);
-  const el = node('group' + (r.enabled && r.kind !== 'fixed' ? ' live' : ''), r.id, `rule:${r.id}`);
-  const bundled = new Set((s.project!.nodeBundles ?? []).filter((b) => b.ruleId === r.id).map((b) => b.optionId));
-  const head = h('div', { class: 'ne-head' });
-  head.appendChild(port(`gin:${r.id}`, 'in', 'gin'));
-  head.appendChild(h('span', { class: 'ne-grip', title: '按住拖动' }, '⠿'));
-  head.appendChild(h('span', { class: 'ne-name', 'data-rename': r.id, title: '按住拖动；点一下改名' }, r.name));
-  head.appendChild(
-    h(
-      'select',
-      { class: 'ne-kind', title: KIND_INFO[r.kind].hint, onchange: (e: Event) => store.setRuleKind(r.id, (e.target as HTMLSelectElement).value as RuleKind) },
-      ...(['exclusive', 'optional', 'multi', 'fixed'] as RuleKind[]).map((k) => h('option', { value: k, selected: k === r.kind }, KIND_INFO[k].label)),
-    ),
-  );
-  head.appendChild(
-    h('button', { class: 'ne-x', title: '删除这个选项组', onclick: () => confirm(`删除选项组「${r.name}」？`) && store.deleteRule(r.id) }, '✕'),
-  );
-  if (r.kind !== 'fixed') head.appendChild(port(`rule:${r.id}`, 'out', r.enabled ? 'on' : ''));
-  el.appendChild(head);
-  if (r.kind !== 'fixed') el.appendChild(h('div', { class: 'ne-sub' + (f.n > 16 ? ' warn' : '') }, `×${f.n}：${f.why}`));
-
-  const warn = store.ruleWarning(r);
-  if (warn) {
-    const box = h('div', { class: 'ne-warn' }, warn.text);
-    for (const fx of warn.fixes) box.appendChild(h('button', { class: 'btn small', onclick: fx.run }, fx.label));
-    el.appendChild(box);
-  }
-
-  if (r.kind === 'optional') {
-    el.appendChild(
-      h(
-        'div',
-        { class: 'ne-row' + (sel.length ? '' : ' on'), onclick: () => sel.length && store.clickOption(r.id, sel[0]) },
-        h('span', { class: 'ne-thumb none' }, '∅'),
-        h('span', { class: 'ne-label' }, '无'),
-      ),
-    );
-  }
-  for (const o of r.options) {
-    const first = o.layerIds.length ? s.project!.layerIndex[o.layerIds[0]] : undefined;
-    const thumb = first?.kind === 'layer' ? s.thumbs.get(first.id) : undefined;
-    el.appendChild(
-      h(
-        'div',
-        {
-          class: 'ne-row' + (sel.includes(o.id) ? ' on' : ''),
-          'data-target': `opt:${o.id}`,
-          title: `${o.name}${o.layerIds.length > 1 ? `（${o.layerIds.length} 个图层一起）` : ''}：点一下选中并预览`,
-          onclick: () => r.kind !== 'fixed' && store.clickOption(r.id, o.id),
-        },
-        thumb ? h('img', { class: 'ne-thumb', src: thumb, alt: '' }) : h('span', { class: 'ne-thumb' }, first?.kind === 'group' ? '📁' : ''),
-        h('span', { class: 'ne-label' }, o.name),
-        bundled.has(o.id) ? h('span', { class: 'ne-tag pack', title: '来自图层包：在图层包节点里改图层' }, '包') : null,
-        h(
-          'button',
-          {
-            class: 'ne-x',
-            title: '删除这个选项',
-            onclick: (e: Event) => {
-              e.stopPropagation();
-              store.deleteOption(r.id, o.id);
-            },
-          },
-          '✕',
-        ),
-        port(`opt:${o.id}`, 'out', 'small'),
-      ),
-    );
-  }
-  if (!r.options.length) el.appendChild(h('div', { class: 'ne-empty' }, '把左边「图层」里的图层 / 文件夹拖到这里'));
-  return el;
-}
-
-function targetName(t: Target): string {
-  const p = store.state.project!;
-  if (t.kind === 'rule') return t.ruleId ? p.rules.find((r) => r.id === t.ruleId)?.name ?? '?' : '';
-  if (t.kind === 'option') {
-    for (const r of p.rules) {
-      const o = r.options.find((x) => x.id === t.optionId);
-      if (o) return `${r.name}：${o.name}`;
-    }
-    return '';
-  }
-  return t.layerId ? `图层：${p.layerIndex[t.layerId]?.cleanName ?? '?'}` : '';
-}
-
-function constraintNode(c: Constraint): HTMLElement {
-  const all = [c.a, c.b, ...(c.more ?? [])];
-  const removed = store.state.result?.perConstraint[c.id] ?? 0;
-  const el = node(`con ${c.kind}` + (c.enabled ? '' : ' off'), c.id, `con:${c.id}`);
-  el.title = '把选项右边的圆点拖到这里 = 加入这条规则';
-  const head = h('div', { class: 'ne-head' });
-  head.appendChild(h('span', { class: 'ne-grip', title: '按住拖动' }, '⠿'));
-  head.appendChild(
-    h('input', {
-      type: 'checkbox',
-      checked: c.enabled,
-      title: '启用 / 停用',
-      onchange: (e: Event) => store.updateConstraint(c.id, { enabled: (e.target as HTMLInputElement).checked }),
-    }),
-  );
-  head.appendChild(
-    h(
-      'select',
-      { class: 'ne-kind wide', onchange: (e: Event) => store.updateConstraint(c.id, { kind: (e.target as HTMLSelectElement).value as Constraint['kind'] }) },
-      h('option', { value: 'mutex', selected: c.kind === 'mutex' }, '互斥：最多一个'),
-      h('option', { value: 'require', selected: c.kind === 'require' }, '依赖：A 需要 B'),
-    ),
-  );
-  head.appendChild(h('button', { class: 'ne-x', title: '删除这条规则', onclick: () => store.deleteConstraint(c.id) }, '✕'));
-  el.appendChild(head);
-  el.appendChild(
-    h(
-      'div',
-      { class: 'ne-sub' },
-      c.kind === 'mutex'
-        ? '下面这些在同一张图里最多出现一个。把选项或选项组标题右边的 ● 拖进来就能加入'
-        : '有 A 的图里必须也有 B（A、B 可以是选项，也可以是整个选项组）',
-    ),
-  );
-  all.forEach((t, i) => {
-    const name = targetName(t);
-    el.appendChild(
-      h(
-        'div',
-        { class: 'ne-row slim' + (name ? '' : ' unset') },
-        port(`cin:${c.id}:${i}`, 'in'),
-        c.kind === 'require' && i < 2 ? h('span', { class: 'ne-tag' }, i ? 'B' : 'A') : null,
-        h('span', { class: 'ne-label', title: name }, name || '（空：把 ● 拖到这里）'),
-        name
-          ? h(
-              'button',
-              { class: 'ne-x', title: '从这条规则里移除', onclick: () => store.clearConstraintTarget(c.id, i) },
-              '✕',
-            )
-          : null,
-      ),
-    );
-  });
-  el.appendChild(h('div', { class: 'ne-foot' }, removed ? `排除了 ${removed} 个组合` : '暂未排除任何组合'));
-  return el;
-}
-
-function combineNode(p: Project): HTMLElement {
-  const live = p.rules.filter((r) => r.enabled && r.kind !== 'fixed');
-  const el = node('combine', 'combine', 'combine');
-  el.appendChild(h('div', { class: 'ne-head' }, h('span', { class: 'ne-name' }, '组合 ×'), port('comb:out', 'out', 'on')));
-  if (!live.length) el.appendChild(h('div', { class: 'ne-empty' }, '把选项组标题右边的圆点拖到这里'));
-  for (const r of live) {
-    const f = store.ruleFactor(r);
-    el.appendChild(
-      h(
-        'div',
-        { class: 'ne-row slim', title: f.why },
-        port(`comb:${r.id}`, 'in'),
-        h('span', { class: 'ne-label' }, r.name),
-        h('span', { class: 'ne-count' + (f.n > 16 ? ' warn' : '') }, `×${f.n}`),
-        h('button', { class: 'ne-x', title: '断开：不参与组合，固定用当前选项', onclick: () => store.setRuleEnabled(r.id, false) }, '✕'),
-      ),
-    );
-  }
-  const raw = store.state.result?.rawCount ?? 0;
-  if (live.length) {
-    el.appendChild(h('div', { class: 'ne-foot' }, `${live.map((r) => store.ruleFactor(r).n).join(' × ')} = ${raw}`));
-    const big = live.map((r) => ({ r, f: store.ruleFactor(r) })).filter((x) => x.f.n > 16);
-    if (big.length) {
-      el.appendChild(
-        h(
-          'div',
-          { class: 'ne-warn' },
-          `组合多主要来自：${big.map((x) => `「${x.r.name}」×${x.f.n}（${x.f.why}）`).join('、')}。` +
-            (big.some((x) => x.r.kind === 'multi') ? '「可多选」是任意搭配；如果一次只出现一个，改成「可选一项」。' : ''),
-        ),
-      );
-    }
-  }
-  return el;
-}
-
-function noteNode(n: NodeNote): HTMLElement {
-  const el = node(n.kind === 'note' ? 'note' : 'pv', n.id, `note:${n.id}`);
-  el.appendChild(
-    h(
-      'div',
-      { class: 'ne-head' },
-      h('span', { class: 'ne-grip', title: '按住拖动' }, '⠿'),
-      h('span', { class: 'ne-name' }, n.kind === 'note' ? '便签' : '预览'),
-      h('button', { class: 'ne-x', title: '删除', onclick: () => store.deleteNote(n.id) }, '✕'),
-    ),
-  );
-  if (n.kind === 'note') {
-    el.appendChild(
-      h('textarea', {
-        class: 'ne-note-text',
-        placeholder: '写点备注：这张图给谁、哪些组合要注意…',
-        value: n.text ?? '',
-        onchange: (e: Event) => store.setNoteText(n.id, (e.target as HTMLTextAreaElement).value),
-      }),
-    );
-  } else {
-    el.appendChild(h('canvas', { class: 'ne-pv-canvas', 'data-pv': n.id }));
-    el.appendChild(h('div', { class: 'ne-foot' }, '当前选择的实时预览：点选项组里的一行就会变'));
-  }
-  return el;
-}
-
-function bundleNode(b: NodeBundle): HTMLElement {
-  const p = store.state.project!;
-  const el = node('bundle', b.id, `bun:${b.id}`);
-  el.title = '把图层拖到这里：它们会一起显示，算一个选项';
-  el.appendChild(
-    h(
-      'div',
-      { class: 'ne-head' },
-      h('span', { class: 'ne-grip', title: '按住拖动' }, '⠿'),
-      h('span', { class: 'ne-name', 'data-rename': b.id, 'data-rename-kind': 'bundle', title: '按住拖动；点一下改名' }, b.name),
-      h('button', { class: 'ne-x', title: '删除这个图层包', onclick: () => store.deleteBundle(b.id) }, '✕'),
-      port(`bun:${b.id}`, 'out', b.ruleId ? 'on' : ''),
-    ),
-  );
-  for (const id of b.layerIds) {
-    const l = p.layerIndex[id];
-    if (!l) continue;
-    const thumb = l.kind === 'layer' ? store.state.thumbs.get(id) : undefined;
-    el.appendChild(
-      h(
-        'div',
-        { class: 'ne-row slim' },
-        thumb ? h('img', { class: 'ne-thumb', src: thumb, alt: '' }) : h('span', { class: 'ne-thumb' }, l.kind === 'group' ? '📁' : ''),
-        h('span', { class: 'ne-label' }, l.cleanName),
-        h('button', { class: 'ne-x', title: '从图层包里拿掉', onclick: () => store.bundleRemoveLayer(b.id, id) }, '✕'),
-      ),
-    );
-  }
-  if (!b.layerIds.length) el.appendChild(h('div', { class: 'ne-empty' }, '把图层 / 文件夹拖到这里（可以多选一起拖）'));
-  const r = b.ruleId ? p.rules.find((x) => x.id === b.ruleId) : undefined;
-  el.appendChild(
-    h(
-      'div',
-      { class: 'ne-foot' },
-      r ? `→ 是「${r.name}」的一个选项：这 ${b.layerIds.length} 个图层一起显示` : '把右边的 ● 连到选项组左边的 ● = 成为它的一个选项',
-    ),
-  );
-  return el;
-}
-
-function exportNode(): HTMLElement {
-  const el = node('export' + (store.state.exportScope === 'current' ? ' direct' : ''), 'export', 'export');
-  el.appendChild(h('div', { class: 'ne-head' }, port('export:in', 'in'), h('span', { class: 'ne-name' }, '导出 ZIP')));
-  el.appendChild(h('div', { class: 'ne-big', 'data-count': '1' }, ''));
-  el.appendChild(h('div', { class: 'ne-foot', 'data-why': '1' }, ''));
-  el.appendChild(h('button', { class: 'btn primary small ne-go', 'data-go': '1', onclick: () => void startExport() }, '导出'));
-  return el;
-}
-
 function updateCounts(): void {
   const s = store.state;
   const res = s.result;
@@ -911,95 +674,6 @@ function updateCounts(): void {
     go.disabled = !n || s.exporting;
     go.textContent = s.exporting ? '导出中…' : `导出 ${n} 张`;
   }
-}
-
-/* Layout (measured) */
-
-function autoLayout(p: Project, sizes: Map<string, Size>): Record<string, Pos> {
-  const out: Record<string, Pos> = {};
-  const size = (id: string) => sizes.get(id) ?? { w: 220, h: 120 };
-  const narrow = viewport.clientWidth > 0 && viewport.clientWidth < 600;
-  // option groups in k balanced columns: as many as make the whole graph
-  // fit the screen at the largest zoom (one column on phones)
-  const colW = Math.max(220, ...p.rules.map((r) => size(r.id).w));
-  const place = (k: number) => {
-    const cols: { ids: string[]; h: number }[] = Array.from({ length: k }, () => ({ ids: [], h: 0 }));
-    const per = p.rules.reduce((a, r) => a + size(r.id).h + GAP, 0) / k;
-    let c = 0;
-    for (const r of p.rules) {
-      if (cols[c].h > 0 && cols[c].h + size(r.id).h / 2 > per && c < k - 1) c++;
-      cols[c].ids.push(r.id);
-      cols[c].h += size(r.id).h + GAP;
-    }
-    return cols;
-  };
-  let best = place(1);
-  if (!narrow && p.rules.length > 2) {
-    const vw = Math.max(1, viewport.clientWidth);
-    const vh = Math.max(1, viewport.clientHeight);
-    const extra = 90 + 260 + 70 + 200 + (p.constraints.length ? 330 : 0);
-    let bestScale = 0;
-    for (let k = 1; k <= Math.min(4, p.rules.length); k++) {
-      const cols = place(k);
-      const w = k * colW + (k - 1) * 60 + extra;
-      const hgt = Math.max(...cols.map((c) => c.h));
-      const sc = Math.min(1, vw / w, vh / hgt);
-      if (sc > bestScale + 0.02) {
-        bestScale = sc;
-        best = cols;
-      }
-    }
-  }
-  const groupTop: Record<string, number> = {};
-  best.forEach((col, ci) => {
-    let y = 0;
-    for (const id of col.ids) {
-      out[id] = { x: ci * (colW + 60), y };
-      groupTop[id] = y;
-      y += size(id).h + GAP;
-    }
-  });
-  const groupsBottom = Math.max(0, ...best.map((c) => c.h - GAP));
-  const groupsRight = (best.length - 1) * (colW + 60) + colW;
-  const x2 = groupsRight + (narrow ? 34 : 90);
-
-  if (narrow) {
-    // phone: one more column with the product, export and the rules stacked
-    let y2 = 0;
-    for (const id of ['combine', 'export', ...p.constraints.map((c) => c.id)]) {
-      out[id] = { x: x2, y: y2 };
-      y2 += size(id).h + GAP;
-    }
-    return out;
-  }
-
-  // column 2: rules, near the groups they connect, without overlapping
-  const rowY = (t: Target): number | undefined => {
-    if (t.kind === 'rule' && t.ruleId) return groupTop[t.ruleId];
-    if (t.kind !== 'option') return undefined;
-    const r = p.rules.find((x) => x.options.some((o) => o.id === t.optionId));
-    if (!r) return undefined;
-    const idx = r.options.findIndex((o) => o.id === t.optionId) + (r.kind === 'optional' ? 1 : 0);
-    return groupTop[r.id] + 70 + idx * 34;
-  };
-  const wanted = p.constraints.map((c) => {
-    const ys = [c.a, c.b, ...(c.more ?? [])].map(rowY).filter((v): v is number => v !== undefined);
-    return { c, y: ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length - size(c.id).h / 2 : 0 };
-  });
-  wanted.sort((a, b) => a.y - b.y);
-  let floor = 0;
-  let col2W = 0;
-  for (const { c, y: want } of wanted) {
-    const yy = Math.max(floor, want);
-    out[c.id] = { x: x2, y: yy };
-    floor = yy + size(c.id).h + GAP;
-    col2W = Math.max(col2W, size(c.id).w);
-  }
-  // column 3: the product node, centred on the groups; then export
-  const x3 = p.constraints.length ? x2 + col2W + 90 : x2;
-  out.combine = { x: x3, y: Math.max(0, groupsBottom / 2 - size('combine').h / 2) };
-  out.export = { x: x3 + size('combine').w + 70, y: out.combine.y };
-  return out;
 }
 
 /* Edges */
@@ -1179,6 +853,33 @@ export function revealNode(id: string): void {
   view.y = 24 - n.offsetTop * view.s;
   applyView();
   drawEdges();
+}
+
+function updateNodeSearch(): void {
+  const query = nodeSearchInput?.value ?? '';
+  const nodes = [...(nodesHost?.children ?? [])] as HTMLElement[];
+  nodeSearchResults = searchNodes(nodes.map((el) => ({ id: el.dataset.node!, text: el.textContent ?? '', el })), query).map((entry) => entry.el);
+  nodeSearchIndex = -1;
+  for (const el of nodes) {
+    el.classList.toggle('search-muted', !!query.trim() && !nodeSearchResults.includes(el));
+    el.classList.toggle('search-hit', !!query.trim() && nodeSearchResults.includes(el));
+    el.classList.remove('search-current');
+  }
+  if (nodeSearchStatus) nodeSearchStatus.textContent = query.trim() ? t('node.searchResults', { count: nodeSearchResults.length }) : '';
+}
+
+function focusSearchResult(direction: number): void {
+  if (!nodeSearchResults.length) return;
+  nodeSearchIndex = nextSearchIndex(nodeSearchIndex, nodeSearchResults.length, direction as 1 | -1);
+  const target = nodeSearchResults[nodeSearchIndex];
+  for (const el of nodeSearchResults) el.classList.remove('search-current');
+  target.classList.add('search-current');
+  const scale = view.s;
+  view.x = (viewport.clientWidth - target.offsetWidth * scale) / 2 - target.offsetLeft * scale;
+  view.y = (viewport.clientHeight - target.offsetHeight * scale) / 2 - target.offsetTop * scale;
+  applyView();
+  drawEdges();
+  nodeSearchStatus.textContent = t('node.searchCount', { current: nodeSearchIndex + 1, total: nodeSearchResults.length });
 }
 
 function drawMini(): void {

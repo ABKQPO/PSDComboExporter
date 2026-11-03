@@ -1,0 +1,16 @@
+/* settings */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 2px;
+  cursor: pointer;
+  line-height: 1.45;
+}
+.check-row input {
+  margin-top: 3px;
+  flex: none;
+}
+.check-row .hint {
+  display: block;
+}

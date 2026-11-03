@@ -1,0 +1,12 @@
+﻿{
+    "common.ok":  "确定",
+    "common.cancel":  "取消",
+    "common.close":  "关闭",
+    "common.delete":  "删除",
+    "common.rename":  "重命名",
+    "common.none":  "无",
+    "common.copied":  "已复制",
+    "common.loading":  "处理中",
+    "common.clear": "清空",
+    "common.done": "完成"
+}

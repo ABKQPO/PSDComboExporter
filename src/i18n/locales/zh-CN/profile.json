@@ -1,0 +1,7 @@
+{
+  "profile.photoshop": "Photoshop",
+  "profile.procreate": "Procreate",
+  "profile.painter": "其他绘画软件（SAI / 爱笔思画 / MediBang 等）",
+  "profile.gpuTrunc": "移动端 GPU（截断取整）",
+  "profile.gpuU8": "移动端 GPU（逐层 8 位）"
+}

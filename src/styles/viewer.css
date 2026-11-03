@@ -1,0 +1,131 @@
+.viewer {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.viewer.grabbing {
+  cursor: grabbing;
+}
+.viewer canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  max-height: none;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.view-tools {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+.view-tools .btn {
+  padding: 3px 8px;
+  min-width: 30px;
+}
+.view-tools .zoom {
+  min-width: 52px;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 860px) {
+  .stage-bar {
+    padding: 4px 8px;
+    min-height: 38px;
+    gap: 6px;
+  }
+  .stage-caption .pill {
+    display: none;
+  }
+}
+
+/* eye toggle: a real eye icon with a finger-sized hit area */
+.tree-row button.eye {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  border-radius: 8px;
+}
+.tree-row button.eye.dim {
+  color: var(--warn);
+  opacity: 0.8;
+}
+.tree-row button.eye.off {
+  color: var(--text-faint);
+}
+.tree-row button.eye:active {
+  background: var(--accent-weak);
+}
+.tree-row button.eye svg {
+  pointer-events: none;
+}
+
+/* structure suggestions */
+.card.suggest {
+  border-color: var(--accent);
+  gap: 6px;
+}
+.sg {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0.75;
+}
+.sg.on {
+  opacity: 1;
+  border-color: var(--accent);
+  background: var(--accent-weak);
+}
+.sg-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.sg-head b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sg-opts {
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-all;
+}
+
+/* tree rows: eye column first, then tick, indent, arrow */
+.tree-row {
+  padding-left: 2px;
+}
+.tree-row .indent {
+  flex: none;
+}
+.tree-row .chk-space {
+  width: 16px;
+  flex: none;
+}
+.tree-row .twisty {
+  width: 22px;
+  height: 28px;
+  margin-right: -2px;
+}
+@media (max-width: 860px) {
+  .sidebar.typing {
+    top: calc(var(--safe-top) + 6px);
+    height: auto;
+    transition: none;
+  }
+}

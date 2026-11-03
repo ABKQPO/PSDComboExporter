@@ -1,0 +1,134 @@
+.tree {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding-right: 6px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.tree-row:last-child {
+  border-bottom: none;
+}
+.tree-row:hover {
+  background: var(--bg-3);
+}
+.tree-row.checked {
+  background: var(--accent-weak);
+}
+.tree-row.hidden .name,
+.tree-row.parent-hidden .name {
+  color: var(--text-faint);
+}
+.twisty {
+  width: 18px;
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0;
+  text-align: center;
+}
+.eye {
+  width: 14px;
+  flex: none;
+  text-align: center;
+  font-size: 11px;
+}
+.tree-row.drawn .eye {
+  color: var(--ok);
+}
+.tree-row.parent-hidden .eye {
+  color: var(--warn);
+}
+.tree-row.hidden .eye {
+  color: var(--text-faint);
+}
+.thumb {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  object-fit: contain;
+  border-radius: 5px;
+  background: repeating-conic-gradient(#3a3d4f 0 25%, #2c2f3e 0 50%) 0 0 / 8px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.thumb.folder {
+  background: none;
+  font-size: 18px;
+}
+.name {
+  flex: 1;
+  min-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clipmark {
+  color: var(--text-faint);
+  margin-right: 4px;
+}
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 3px;
+  max-width: 55%;
+}
+.optchip,
+.tagchip,
+.mini {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  line-height: 18px;
+}
+.optchip {
+  background: var(--accent-weak);
+  color: #b8c7ff;
+}
+.tagchip {
+  background: var(--ok-weak);
+  color: var(--ok);
+}
+.tagchip.ign {
+  background: var(--bg-4);
+  color: var(--text-faint);
+}
+.mini {
+  background: var(--bg-4);
+  color: var(--text-dim);
+}
+.mini.warn {
+  background: var(--warn-weak);
+  color: var(--warn);
+}
+.tree-row .act {
+  flex: none;
+  font-size: 12px;
+  color: var(--accent);
+}
+.bulk {
+  position: sticky;
+  top: -12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: #1b2036;
+  box-shadow: var(--shadow);
+}

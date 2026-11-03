@@ -1,0 +1,10 @@
+.notice.restore {
+  border-color: var(--accent);
+}
+.btn.danger {
+  color: var(--bad);
+}
+.btn.small.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}

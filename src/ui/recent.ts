@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Recently opened files.
  *
@@ -72,11 +73,11 @@ export function clearRecent(): RecentEntry[] {
 export function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
   const min = Math.round(diff / 60000);
-  if (min < 1) return '刚刚';
-  if (min < 60) return `${min} 分钟前`;
+  if (min < 1) return t('home.timeNow');
+  if (min < 60) return t('home.timeMinutes', { n: min });
   const hour = Math.round(min / 60);
-  if (hour < 24) return `${hour} 小时前`;
+  if (hour < 24) return t('home.timeHours', { n: hour });
   const day = Math.round(hour / 24);
-  if (day < 30) return `${day} 天前`;
+  if (day < 30) return t('home.timeDays', { n: day });
   return new Date(ts).toLocaleDateString();
 }

@@ -7,6 +7,7 @@ import { h } from './dom';
 import * as store from './store';
 import { clearRecent, relativeTime, removeRecent, MAX_LIMIT, MIN_LIMIT, type RecentEntry } from './recent';
 import { pickFile } from './importPanel';
+import { t } from '../i18n';
 
 export function renderHome(): HTMLElement {
   const s = store.state;
@@ -18,14 +19,14 @@ export function renderHome(): HTMLElement {
   // Left column: identity and the primary action.
   const brand = h('div', { class: 'home-brand' });
   brand.appendChild(h('img', { class: 'home-logo', src: 'icon.png', alt: '', draggable: 'false' }));
-  brand.appendChild(h('h1', { class: 'home-title' }, 'PSD组合导出'));
+  brand.appendChild(h('h1', { class: 'home-title' }, t('app.name')));
   brand.appendChild(
-    h('p', { class: 'home-sub' }, '按选项组组合图层，批量导出全部变体。'),
+    h('p', { class: 'home-sub' }, t('app.tagline')),
   );
 
   const actions = h('div', { class: 'home-actions' });
   actions.appendChild(
-    h('button', { class: 'btn primary home-open', onclick: () => pickFile() }, '打开文件'),
+    h('button', { class: 'btn primary home-open', onclick: () => pickFile() }, t('app.open')),
   );
   actions.appendChild(
     h(
@@ -37,7 +38,7 @@ export function renderHome(): HTMLElement {
           store.notify();
         },
       },
-      '使用说明',
+      t('app.help'),
     ),
   );
   brand.appendChild(actions);
@@ -45,16 +46,14 @@ export function renderHome(): HTMLElement {
     h(
       'div',
       { class: 'home-drop hint' },
-      s.platform === 'android'
-        ? '支持 .psd / .psb / .ipv'
-        : '支持 .psd / .psb / .ipv，也可以把文件拖进窗口',
+      s.platform === 'android' ? t('app.supported') : t('app.supportedDrop'),
     ),
   );
   inner.appendChild(brand);
 
   const side = h('div', { class: 'home-recent' });
   const head = h('div', { class: 'home-recent-head' });
-  head.appendChild(h('span', { class: 'home-recent-title' }, '最近打开'));
+  head.appendChild(h('span', { class: 'home-recent-title' }, t('home.recent')));
   head.appendChild(
     h(
       'span',
@@ -66,7 +65,7 @@ export function renderHome(): HTMLElement {
 
   if (list.length === 0) {
     side.appendChild(
-      h('div', { class: 'home-empty hint' }, '还没有打开过文件。打开一个 PSD 后，它会出现在这里。'),
+      h('div', { class: 'home-empty hint' }, t('home.empty')),
     );
   } else {
     const scroller = h('div', { class: 'home-list' });
@@ -84,12 +83,12 @@ export function renderHome(): HTMLElement {
         {
           class: 'btn ghost small',
           onclick: () => {
-            if (!confirm('清空最近打开的记录？（不影响已保存的选项组设置）')) return;
+            if (!confirm(t('home.clearConfirm'))) return;
             store.state.recent = clearRecent();
             store.notify();
           },
         },
-        '清空记录',
+        t('home.clear'),
       ),
     );
   }
@@ -104,7 +103,7 @@ export function renderHome(): HTMLElement {
           store.setTab('settings');
         },
       },
-      '设置显示数量',
+      t('home.more'),
     ),
   );
   side.appendChild(foot);
@@ -122,11 +121,11 @@ function recentLimit(): number {
 function renderEntry(entry: RecentEntry): HTMLElement {
   const row = h('div', {
     class: 'recent-item',
-    title: `重新选择 ${entry.name} 打开`,
+    title: t('home.reopen', { name: entry.name }),
     onclick: () => {
       // Browsers cannot reopen a local file on their own, so ask for it again;
       // the saved option groups are matched by file name and restored.
-      store.toast(`请选择 ${entry.name}，已保存的选项组会自动恢复`, 'info');
+      store.toast(t('home.reopenToast', { name: entry.name }), 'info');
       pickFile();
     },
   });
@@ -145,7 +144,7 @@ function renderEntry(entry: RecentEntry): HTMLElement {
     h(
       'div',
       { class: 'recent-detail hint' },
-      `${entry.width}×${entry.height} · ${entry.layerCount} 个图层 · ${entry.ruleCount} 个选项组`,
+      t('home.detail', { w: entry.width, h: entry.height, layers: entry.layerCount, rules: entry.ruleCount }),
     ),
   );
   meta.appendChild(h('div', { class: 'recent-when hint' }, relativeTime(entry.openedAt)));
@@ -156,7 +155,7 @@ function renderEntry(entry: RecentEntry): HTMLElement {
       'button',
       {
         class: 'recent-remove',
-        title: '从列表移除',
+        title: t('home.remove'),
         onclick: (e: Event) => {
           e.stopPropagation();
           store.state.recent = removeRecent(entry.key);

@@ -1,0 +1,8 @@
+﻿{
+    "drop.title":  "Import a PSD and export every layer combination",
+    "drop.desc":  "Pick the layers that form variants → set required / optional / exclusive groups → preview every combination → export them as a single ZIP. Images are composited pixel by pixel the way Photoshop does it.",
+    "drop.pick":  "Choose a PSD / IPV file",
+    "drop.formats":  "Supports .psd / .psb from Photoshop, SAI, Procreate, MediBang and .ipv artwork from ibisPaint.",
+    "drop.androidHint":  "If the PSD is not listed, switch the picker to the Files view or its folder.",
+    "drop.desktopHint":  "You can also drag a .psd / .ipv file onto the window."
+}

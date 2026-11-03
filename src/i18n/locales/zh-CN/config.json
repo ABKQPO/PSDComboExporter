@@ -1,0 +1,5 @@
+{
+  "config.source": "（来自「{source}」）",
+  "config.importMissing": "配置已导入{source}，但有 {count} 个图层没找到：{names}。",
+  "config.imported": "配置已导入{source}：{groups} 个选项组、{rules} 条规则，图层全部匹配。"
+}

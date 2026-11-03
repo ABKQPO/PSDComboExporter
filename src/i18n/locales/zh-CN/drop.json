@@ -1,0 +1,8 @@
+﻿{
+    "drop.title":  "导入 PSD，批量导出所有图层组合",
+    "drop.desc":  "选择要参与组合的图层 → 设定「必选 / 可选 / 互斥」规则 → 预览所有组合 → 一键导出为一个 ZIP 压缩包。导出图像按 Photoshop 的方式逐像素合成，与 PSD 原图一致。",
+    "drop.pick":  "选择 PSD / IPV 文件",
+    "drop.formats":  "支持 Photoshop、SAI、Procreate、MediBang 等导出的 .psd / .psb，以及爱笔思画的 .ipv 作品文件。",
+    "drop.androidHint":  "提示：若文件列表里看不到 PSD，请在选择器左上角菜单里切换到「文件」或对应文件夹。",
+    "drop.desktopHint":  "也可以直接把 .psd / .ipv 文件拖进窗口。"
+}

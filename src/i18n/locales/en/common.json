@@ -1,0 +1,12 @@
+﻿{
+    "common.ok":  "OK",
+    "common.cancel":  "Cancel",
+    "common.close":  "Close",
+    "common.delete":  "Delete",
+    "common.rename":  "Rename",
+    "common.none":  "None",
+    "common.copied":  "Copied",
+    "common.loading":  "Working",
+    "common.clear": "Clear",
+    "common.done": "Done"
+}

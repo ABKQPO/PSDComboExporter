@@ -434,7 +434,7 @@ export async function createTarget(mode: ExportMode = 'zip'): Promise<ExportTarg
 /* Small text files (configuration) */
 
 /** Save a text file where the user chooses. Returns a description of the location, or null if cancelled. */
-export async function saveTextFile(name: string, text: string): Promise<string | null> {
+export async function saveTextFile(name: string, text: string, mimeType = 'application/json'): Promise<string | null> {
   const platform = detectPlatform();
   if (platform === 'electron') {
     const res = await (window as any).psdExportNative.saveText(name, text);
@@ -449,7 +449,7 @@ export async function saveTextFile(name: string, text: string): Promise<string |
     if (!plugin) throw new Error('保存插件不可用');
     let res;
     try {
-      res = await plugin.chooseFile({ fileName: name, mimeType: 'application/json' });
+      res = await plugin.chooseFile({ fileName: name, mimeType });
     } catch {
       return null; // cancelled
     }
@@ -457,7 +457,7 @@ export async function saveTextFile(name: string, text: string): Promise<string |
     const closed = await plugin.closeFile();
     return describeUri(closed?.uri ?? res?.uri ?? name);
   }
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  const url = URL.createObjectURL(new Blob([text], { type: mimeType }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;

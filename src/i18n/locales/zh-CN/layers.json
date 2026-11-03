@@ -1,0 +1,15 @@
+{
+  "layers.guideTitle": "第 1 步：选择参与组合的图层。",
+  "layers.guideBefore": "勾选图层或图层组，在下方把它们设为一个「选项组」；或点组旁边的",
+  "layers.childrenAsOptions": "⇢ 子项作选项",
+  "layers.guideAfter": "，把组内每个子图层变成一个选项（如发型：短发 / 长发）。没有加入选项组的图层会按 PSD 里保存的显示状态出现在每张导出图中；点图层左边的眼睛图标可以直接显示 / 隐藏它。",
+  "layers.layerCount": "{count} 个图层/组",
+  "layers.visibleCount": "当前显示 {count} 个图层",
+  "layers.compareTitle": "按 PSD 保存时的显示状态渲染，与 PSD 内的合成图逐像素比较",
+  "layers.compare": "校验渲染一致性",
+  "layers.search": "搜索图层或组名…",
+  "layers.legend": "图例：睁眼 = 正在显示；黄色睁眼 = 自身打开但上级组隐藏；闭眼 = 隐藏。图层名后的蓝色标签表示它属于哪个选项组；「整体」组可以展开查看，但里面的图层不能拆开当选项。",
+  "layers.noMatches": "没有找到包含「{query}」的图层",
+  "layers.compositingMethod": "合成方式",
+  "layers.autoProfile": "自动识别（{profile}）"
+}

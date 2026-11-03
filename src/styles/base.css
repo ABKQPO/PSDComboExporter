@@ -1,0 +1,89 @@
+:root {
+  --bg: #0f1015;
+  --bg-2: #161821;
+  --bg-3: #1d2030;
+  --bg-4: #262a3d;
+  --line: #2c3045;
+  --line-2: #3b4060;
+  --text: #e9eaf2;
+  --text-dim: #a2a5bd;
+  --text-faint: #6f7390;
+  --accent: #6d8dff;
+  --accent-weak: rgba(109, 141, 255, 0.16);
+  --ok: #43cf98;
+  --ok-weak: rgba(67, 207, 152, 0.13);
+  --warn: #f0b429;
+  --warn-weak: rgba(240, 180, 41, 0.13);
+  --bad: #f2606a;
+  --bad-weak: rgba(242, 96, 106, 0.13);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --sidebar-w: 470px;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.55 system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  overscroll-behavior: none;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+input,
+select,
+textarea {
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  min-width: 0;
+  outline: none;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+}
+input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: var(--accent);
+  flex: none;
+  cursor: pointer;
+}
+input[type='range'] {
+  padding: 0;
+  flex: 1;
+  accent-color: var(--accent);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 10px;
+  border: 2px solid var(--bg-2);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -1,0 +1,22 @@
+{
+  "preset.smart": "智能识别（推荐）",
+  "preset.smartHint": "按文件夹结构自动建好选项组：同一个文件夹里的几个差分选一个",
+  "preset.face": "只换表情",
+  "preset.faceHint": "只让名字像「表情 / 脸 / 眼 / 嘴」的组参与组合，其他组固定用当前选择",
+  "preset.optional": "每组都可以不要",
+  "preset.optionalHint": "把所有「必选一项」改成「可选一项」：每组多一种「都不要」",
+  "preset.mutex": "互斥示例",
+  "preset.mutexHint": "在两个组的选项之间连一条互斥：它们不会出现在同一张图里",
+  "preset.require": "依赖示例",
+  "preset.requireHint": "连一条依赖：有 A 的图里必须也有 B",
+  "preset.blank": "空白画布",
+  "preset.blankHint": "清空所有节点，从零开始自己拖",
+  "preset.smartDone": "已按智能识别建好 {count} 个选项组",
+  "preset.noFaceGroups": "没找到名字像「表情 / 脸 / 眼 / 嘴」的选项组",
+  "preset.faceDone": "只换「{groups}」，其他组固定用当前选择",
+  "preset.optionalDone": "{count} 个组改成了「可选一项」",
+  "preset.noExclusiveGroups": "没有「必选一项」的组",
+  "preset.twoGroupsRequired": "至少要有两个各含 2 个以上选项的组。先用「智能识别」或拖图层建组",
+  "preset.mutexDone": "示例：「{a}」和「{b}」不会出现在同一张图里。把更多选项的圆点拖进这个节点 = 它们之间最多出现一个",
+  "preset.requireDone": "示例：有「{a}」的图里一定有「{b}」"
+}

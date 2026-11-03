@@ -1,6 +1,7 @@
 /** App shell: top bar, preview stage, step tabs, overlays, toasts. */
 
 import * as store from './store';
+import { t } from '../i18n';
 import { h, clear } from './dom';
 import { renderLayersPanel, patchLayersPanel } from './layersPanel';
 import { renderRulesPanel } from './rulesPanel';
@@ -37,7 +38,7 @@ let pendingScrollTop: number | null | undefined;
  */
 export function closeToHome(): void {
   if (store.state.exporting) {
-    if (!confirm('正在导出，确定要关闭当前文件吗？')) return;
+    if (!confirm(t('app.closeConfirm'))) return;
     cancelExport();
   }
   viewer = null;
@@ -48,14 +49,16 @@ export function closeToHome(): void {
   store.notify();
 }
 
-const TABS: { id: store.TabId; label: string; short: string }[] = [
-  { id: 'layers', label: '1 图层', short: '图层' },
-  { id: 'rules', label: '2 选项组', short: '选项组' },
-  { id: 'constraints', label: '3 规则', short: '规则' },
-  { id: 'combos', label: '4 组合', short: '组合' },
-  { id: 'export', label: '5 导出', short: '导出' },
-  { id: 'settings', label: '设置', short: '设置' },
-];
+function tabDefs(): { id: store.TabId; label: string; short: string }[] {
+  return [
+    { id: 'layers', label: '1 ' + t('tab.layers'), short: t('tab.layers') },
+    { id: 'rules', label: '2 ' + t('tab.rules'), short: t('tab.rules') },
+    { id: 'constraints', label: '3 ' + t('tab.constraints'), short: t('tab.constraints') },
+    { id: 'combos', label: '4 ' + t('tab.combos'), short: t('tab.combos') },
+    { id: 'export', label: '5 ' + t('tab.export'), short: t('tab.export') },
+    { id: 'settings', label: t('tab.settings'), short: t('tab.settings') },
+  ];
+}
 
 export function mount(el: HTMLElement): void {
   root = el;
@@ -79,17 +82,17 @@ function build(): void {
       'button',
       {
         class: 'brand home-back',
-        title: '关闭当前文件，返回主界面',
+        title: t('app.backHome'),
         onclick: () => closeToHome(),
       },
       h('span', { class: 'logo' }, '◩'),
-      'PSD 组合导出',
+      t('app.name'),
     ),
   );
   titleHost = h('div', { class: 'doc-title' });
   topbar.appendChild(titleHost);
   topbar.appendChild(h('span', { class: 'spacer' }));
-  topbar.appendChild(h('button', { class: 'btn small', onclick: () => pickFile(), title: '导入 PSD / IPV（Ctrl+O）' }, '导入'));
+  topbar.appendChild(h('button', { class: 'btn small', onclick: () => pickFile(), title: t('app.importTitle') }, t('app.import')));
   quickExportHost = h('span', { class: 'quick-export' });
   topbar.appendChild(quickExportHost);
   topbar.appendChild(
@@ -97,7 +100,7 @@ function build(): void {
       'button',
       {
         class: 'btn small ghost',
-        title: '显示 / 隐藏各页顶部的蓝色说明',
+        title: t('app.guidesTitle'),
         onclick: () => {
           const st = store.state;
           st.guidesHidden = !st.guidesHidden;
@@ -109,11 +112,11 @@ function build(): void {
           store.notify(true);
         },
       },
-      '说明',
+      t('app.guides'),
     ),
   );
   topbar.appendChild(
-    h('button', { class: 'btn small ghost', title: '使用说明', onclick: () => ((store.state.helpOpen = true), store.notify()) }, '?'),
+    h('button', { class: 'btn small ghost', title: t('app.helpTitle'), onclick: () => ((store.state.helpOpen = true), store.notify()) }, '?'),
   );
   root.appendChild(topbar);
 
@@ -191,30 +194,30 @@ function renderStage(): void {
     .map((r) => {
       const ids = s.selection[r.id] ?? [];
       const names = r.options.filter((o) => ids.includes(o.id)).map((o) => o.name);
-      return `${r.name}：${names.join('+') || '无'}`;
+      return `${r.name}: ${names.join('+') || t('common.none')}`;
     });
   bar.appendChild(
     h(
       'div',
       { class: 'stage-caption' },
-      combo ? h('span', { class: 'pill ok' }, `组合 #${s.focusCombo + 1}`) : h('span', { class: 'pill' }, '当前选择'),
-      h('span', { class: 'caption-text', title: labels.join('　') }, labels.join('　') || '没有选项组，显示 PSD 原样'),
+      combo ? h('span', { class: 'pill ok' }, `#${s.focusCombo + 1}`) : h('span', { class: 'pill' }, t('app.currentSelection')),
+      h('span', { class: 'caption-text', title: labels.join('　') }, labels.join('　') || t('app.noGroups')),
     ),
   );
   const v = store.currentViolations();
-  if (v.length) bar.appendChild(h('span', { class: 'pill bad', title: v.join('\n') }, '违反规则，不会导出'));
-  if (s.previewBusy) bar.appendChild(h('span', { class: 'spinner', title: '渲染中' }));
+  if (v.length) bar.appendChild(h('span', { class: 'pill bad', title: v.join('\n') }, t('app.ruleViolation')));
+  if (s.previewBusy) bar.appendChild(h('span', { class: 'spinner', title: t('app.rendering') }));
   const vw = viewer;
   bar.appendChild(
     h(
       'div',
       { class: 'view-tools' },
-      h('button', { class: 'btn ghost small', title: '向左旋转 90°', onclick: () => vw.rotate(-90) }, '⟲'),
-      h('button', { class: 'btn ghost small', title: '向右旋转 90°', onclick: () => vw.rotate(90) }, '⟳'),
-      (zoomBtn = h('button', { class: 'btn ghost small zoom', title: '复位：适应窗口、取消旋转（也可双击画面）', onclick: () => vw.reset() }, '')),
+      h('button', { class: 'btn ghost small', title: t('app.rotateLeft'), onclick: () => vw.rotate(-90) }, '⟲'),
+      h('button', { class: 'btn ghost small', title: t('app.rotateRight'), onclick: () => vw.rotate(90) }, '⟳'),
+      (zoomBtn = h('button', { class: 'btn ghost small zoom', title: t('app.resetView'), onclick: () => vw.reset() }, '')),
     ),
   );
-  stageFoot!.textContent = `预览为缩小的近似图，导出按原始尺寸 ${p.width}×${p.height} 精确合成。拖动平移 · 双指/滚轮缩放 · 双指或 Shift+滚轮旋转 · 双击复位`;
+  stageFoot!.textContent = t('app.previewHint', { w: p.width, h: p.height });
   previewCanvas.style.visibility = s.previewSize ? 'visible' : 'hidden';
   viewer.apply();
   store.setPreviewCanvas(previewCanvas);
@@ -287,26 +290,32 @@ function renderSidebar(force: boolean): void {
     return;
   }
   const tabs = h('div', { class: 'tabs' });
-  for (const t of TABS) {
+  for (const def of tabDefs()) {
     const badge =
-      t.id === 'rules' ? s.project.rules.length : t.id === 'constraints' ? s.project.constraints.length : t.id === 'combos' ? s.result?.combos.length ?? 0 : null;
+      def.id === 'rules'
+        ? s.project.rules.length
+        : def.id === 'constraints'
+          ? s.project.constraints.length
+          : def.id === 'combos'
+            ? (s.result?.combos.length ?? 0)
+            : null;
     tabs.appendChild(
       h(
         'button',
-        { class: 'tab' + (s.tab === t.id ? ' active' : ''), onclick: () => store.setTab(t.id) },
-        t.label,
-        h('span', { class: 'tab-badge', 'data-tab': t.id, style: badge ? '' : 'display:none' }, String(badge ?? '')),
+        { class: 'tab' + (s.tab === def.id ? ' active' : ''), onclick: () => store.setTab(def.id) },
+        def.label,
+        h('span', { class: 'tab-badge', 'data-tab': def.id, style: badge ? '' : 'display:none' }, String(badge ?? '')),
       ),
     );
   }
   tabs.appendChild(
     h(
       'button',
-      { class: 'sheet-size', title: '面板高度', onclick: () => ((s.sheetTall = !s.sheetTall), store.notify(true)) },
-      s.sheetTall ? '缩小面板' : '展开面板',
+      { class: 'sheet-size', title: t('app.panelHeight'), onclick: () => ((s.sheetTall = !s.sheetTall), store.notify(true)) },
+      s.sheetTall ? t('app.collapsePanel') : t('app.expandPanel'),
     ),
   );
-  tabs.appendChild(h('button', { class: 'sheet-close', onclick: () => ((s.sheetOpen = false), store.notify(true)) }, '收起'));
+  tabs.appendChild(h('button', { class: 'sheet-close', onclick: () => ((s.sheetOpen = false), store.notify(true)) }, t('app.collapse')));
   sidebarHost.appendChild(tabs);
 
   const panel = h('div', { class: 'tab-panel' });
@@ -330,10 +339,10 @@ function renderSidebar(force: boolean): void {
       panel.appendChild(renderSettingsPanel());
       break;
   }
-  const next = TABS.findIndex((t) => t.id === s.tab) + 1;
-  if (next < TABS.length && TABS[next].id !== 'settings') {
+  const next = tabDefs().findIndex((t) => t.id === s.tab) + 1;
+  if (next < tabDefs().length && tabDefs()[next].id !== 'settings') {
     panel.appendChild(
-      h('button', { class: 'btn next-step', onclick: () => store.setTab(TABS[next].id) }, `下一步：${TABS[next].short} →`),
+      h('button', { class: 'btn next-step', onclick: () => store.setTab(tabDefs()[next].id) }, t('app.nextStep', { step: tabDefs()[next].short })),
     );
   }
   sidebarHost.appendChild(panel);
@@ -345,7 +354,7 @@ function renderSidebar(force: boolean): void {
   sidebarHost.classList.toggle('tall', s.sheetTall);
 
   // back to top
-  const top = h('button', { class: 'to-top', title: '回到顶部', onclick: () => panel.scrollTo({ top: 0, behavior: 'smooth' }) }, '↑');
+  const top = h('button', { class: 'to-top', title: t('app.backTop'), onclick: () => panel.scrollTo({ top: 0, behavior: 'smooth' }) }, '↑');
   const syncTop = () => top.classList.toggle('show', panel.scrollTop > 400);
   panel.addEventListener('scroll', syncTop, { passive: true });
   syncTop();
@@ -375,15 +384,15 @@ function render(): void {
     quickExportHost.appendChild(
       h(
         'button',
-        { class: 'btn small' + (s.nodeEditorOpen ? ' on' : ''), title: '节点工作流：像 Blender 节点一样连线设置组合与互斥', onclick: () => store.setNodeEditor(!s.nodeEditorOpen) },
-        '节点',
+        { class: 'btn small' + (s.nodeEditorOpen ? ' on' : ''), title: t('app.nodeTitleShort'), onclick: () => store.setNodeEditor(!s.nodeEditorOpen) },
+        t('app.node'),
       ),
     );
     quickExportHost.appendChild(
       h(
         'button',
-        { class: 'btn small primary', disabled: !n || s.exporting, title: '按当前设置把要导出的组合打包成 ZIP', onclick: () => void startExport() },
-        `一键导出 ${n} 张`,
+        { class: 'btn small primary', disabled: !n || s.exporting, title: t('app.nodeExportTitle'), onclick: () => void startExport() },
+        t('app.oneClickExport', { n }),
       ),
     );
   }
@@ -395,19 +404,19 @@ function render(): void {
 
   clear(tabbarHost);
   if (s.project) {
-    for (const t of TABS) {
+    for (const def of tabDefs()) {
       tabbarHost.appendChild(
         h(
           'button',
           {
-            class: s.tab === t.id && s.sheetOpen ? 'active' : '',
+            class: s.tab === def.id && s.sheetOpen ? 'active' : '',
             onclick: () => {
-              if (s.tab === t.id && s.sheetOpen) s.sheetOpen = false;
-              else store.setTab(t.id);
+              if (s.tab === def.id && s.sheetOpen) s.sheetOpen = false;
+              else store.setTab(def.id);
               store.notify();
             },
           },
-          t.short,
+          def.short,
         ),
       );
     }
@@ -428,12 +437,12 @@ function render(): void {
 
 function renderBusy(label: string, progress: number): HTMLElement {
   const modal = h('div', { class: 'modal' });
-  modal.appendChild(h('h2', null, store.state.exporting ? '导出中' : '请稍候'));
+  modal.appendChild(h('h2', null, store.state.exporting ? t('export.exporting') : t('app.working')));
   modal.appendChild(h('div', { class: 'busy-label' }, label));
   modal.appendChild(h('div', { class: 'progress' }, h('i', { style: `width:${Math.round(progress * 100)}%` })));
   modal.appendChild(h('div', { class: 'hint', style: 'text-align:right' }, `${Math.round(progress * 100)}%`));
   if (store.state.cancellable) {
-    modal.appendChild(h('button', { class: 'btn', style: 'width:100%', onclick: () => cancelExport() }, '取消导出'));
+    modal.appendChild(h('button', { class: 'btn', style: 'width:100%', onclick: () => cancelExport() }, t('app.cancelExport')));
   }
   return h('div', { class: 'overlay' }, modal);
 }
@@ -444,6 +453,6 @@ export function installGlobalDrop(): void {
     e.preventDefault();
     const f = e.dataTransfer?.files?.[0];
     if (f && PSD_EXT.test(f.name)) await importFile(f);
-    else if (f) store.toast('请拖入 .psd / .psb / .ipv 文件', 'bad');
+    else if (f) store.toast(t('app.dropFileError'), 'bad');
   });
 }

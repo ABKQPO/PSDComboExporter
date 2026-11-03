@@ -1,4 +1,4 @@
-/**
+﻿/**
  * UI state container: a plain object, explicit notify(), no framework
  * (keeps the APK small and the code easy to follow).
  */
@@ -33,6 +33,18 @@ import { engine } from '../engine/client';
 import EnumerateWorker from '../core/enumerate.worker?worker';
 import type { Calibration, CompareResult, ProfileId, RenderedImage } from '../engine/protocol';
 import { loadRecent, type RecentEntry } from './recent';
+import { invalidatePreview, schedulePreview } from './preview';
+import { t as tr } from '../i18n';
+
+export {
+  clearThumbQueue,
+  imageToCanvas,
+  previewPending,
+  previewSourceCanvas,
+  requestComboThumb,
+  schedulePreview,
+  setPreviewCanvas,
+} from './preview';
 
 export type TabId = 'layers' | 'rules' | 'constraints' | 'combos' | 'export' | 'settings';
 
@@ -239,7 +251,7 @@ function storageKey(p: Project): string {
   return storageKeyOf(p);
 }
 
-function save(): void {
+export function save(): void {
   const p = state.project;
   if (!p) return;
   try {
@@ -316,6 +328,7 @@ export function loadProject(
   undoStack = [];
   redoStack = [];
   current = null;
+  state.nodeEditorOpen = state.prefs.nodeDefault;
 
   const restored = state.autoRestore ? restore(project) : null;
   state.restoredInfo = restored ? { rules: project.rules.length, constraints: project.constraints.length } : null;
@@ -349,6 +362,12 @@ export function closeProject(): void {
 let resultKey = '';
 let allResultKey = '';
 let allResult: EnumerateResult | null = null;
+
+export function invalidateResultCache(): void {
+  resultKey = '';
+  allResultKey = '';
+  allResult = null;
+}
 
 /** Every possibility, ignoring cross-group rules (computed on demand). */
 export function allPossibleResult(): EnumerateResult | null {
@@ -481,7 +500,7 @@ export function clickOption(ruleId: string, optionId: string): void {
   const conflict = optionConflict(ruleId, optionId);
   state.selection = toggleOption(p, state.selection, ruleId, optionId);
   refresh();
-  if (conflict) toast(`注意：${conflict}，这个组合不会被导出`, 'bad');
+  if (conflict) toast(tr('store.selectionConflict', { conflict }), 'bad');
 }
 
 export function currentViolations(): string[] {
@@ -519,7 +538,7 @@ export function addRuleFromChecked(kind: RuleKind, asOneOption: boolean): void {
   const ids = p.layers.filter((l) => state.checked.has(l.id)).map((l) => l.id).reverse();
   let r: Rule;
   if (asOneOption) {
-    r = ruleFromLayers(p, [], kind, `选项组 ${p.rules.length + 1}`);
+    r = ruleFromLayers(p, [], kind, tr('store.groupNumber', { n: p.rules.length + 1 }));
     r.options = [{ id: uid('opt'), name: p.layerIndex[ids[0]].cleanName, layerIds: ids, source: '' }];
   } else {
     r = ruleFromLayers(p, ids, kind);
@@ -528,18 +547,18 @@ export function addRuleFromChecked(kind: RuleKind, asOneOption: boolean): void {
   state.checked.clear();
   autoSelect(r);
   refresh();
-  toast(`已新建选项组「${r.name}」，共 ${r.options.length} 个选项`, 'ok');
+  toast(tr('store.groupCreated', { name: r.name, n: r.options.length }), 'ok');
 }
 
 export function addRuleFromGroup(groupId: string, kind: RuleKind = 'exclusive'): void {
   const p = state.project;
   if (!p) return;
   const r = ruleFromGroupChildren(p, groupId, kind);
-  if (!r) return toast('这个组是空的', 'bad');
+  if (!r) return toast(tr('store.emptyGroup'), 'bad');
   p.rules.push(r);
   autoSelect(r);
   refresh();
-  toast(`已把「${r.name}」的 ${r.options.length} 个子图层设为选项`, 'ok');
+  toast(tr('store.childrenAdded', { name: r.name, n: r.options.length }), 'ok');
 }
 
 /** Add the ticked layers as new options of an existing group. */
@@ -552,7 +571,7 @@ export function addCheckedToRule(ruleId: string, asOneOption: boolean): void {
   else for (const id of ids) r.options.push({ id: uid('opt'), name: p.layerIndex[id].cleanName, layerIds: [id], source: '' });
   state.checked.clear();
   refresh();
-  toast(`已加入「${r.name}」`, 'ok');
+  toast(tr('store.addedToGroup', { name: r.name }), 'ok');
 }
 
 function autoSelect(r: Rule): void {
@@ -564,7 +583,7 @@ function autoSelect(r: Rule): void {
 export function addEmptyRule(): void {
   const p = state.project;
   if (!p) return;
-  p.rules.push({ id: uid('rule'), name: `选项组 ${p.rules.length + 1}`, kind: 'optional', options: [], enabled: true, source: 'manual' });
+  p.rules.push({ id: uid('rule'), name: tr('store.groupNumber', { n: p.rules.length + 1 }), kind: 'optional', options: [], enabled: true, source: 'manual' });
   refresh();
 }
 
@@ -629,20 +648,20 @@ function dropTargets(p: Project, match: (t: Target) => boolean): void {
 export function clearRules(): void {
   const p = state.project;
   if (!p || !p.rules.length) return;
-  if (!confirm(`清空全部 ${p.rules.length} 个选项组？引用它们的跨组规则也会一起删除。`)) return;
+  if (!confirm(tr('store.clearGroupsConfirm', { n: p.rules.length }))) return;
   p.rules = [];
   dropTargets(p, (t) => t.kind !== 'layer');
   state.selection = {};
   state.excludedCombos = new Set();
   refresh();
-  toast('已清空选项组。可以在「图层」页重新选择，或用「智能识别」', 'ok');
+  toast(tr('store.groupsCleared'), 'ok');
 }
 
 /** Reset all: back to how the file looks when imported for the first time. */
 export function startFresh(ask = true): void {
   const p = state.project;
   if (!p) return;
-  if (ask && !confirm('清除这个文件的全部设置（选项组、规则、显示改动、整体组、组合勾选、导出设置），回到刚导入时的状态？')) return;
+  if (ask && !confirm(tr('store.resetFileConfirm'))) return;
   try {
     localStorage.removeItem(storageKey(p));
   } catch {
@@ -666,7 +685,7 @@ export function startFresh(ask = true): void {
   void engine.setProfile(state.calibration?.profile ?? 'photoshop');
   invalidatePreview();
   refresh();
-  toast('已回到刚导入时的状态', 'ok');
+  toast(tr('store.fileReset'), 'ok');
 }
 
 export function dismissRestored(): void {
@@ -687,6 +706,9 @@ export interface Prefs {
   workers: number;
   quickPreview: boolean;
   miniPreview: boolean;
+  nodeDefault: boolean;
+  /** 'auto' follows the system language */
+  locale: 'auto' | 'zh-CN' | 'en';
   /** how many recent files the home screen lists */
   recentCount: number;
 }
@@ -701,6 +723,8 @@ function defaultPrefs(): Prefs {
     workers: 0,
     quickPreview: true,
     miniPreview: true,
+    nodeDefault: true,
+    locale: 'auto',
     recentCount: 10,
   };
 }
@@ -731,7 +755,7 @@ export function resetPrefs(): void {
   state.prefs = defaultPrefs();
   savePrefs();
   notify();
-  toast('设置已恢复默认', 'ok');
+  toast(tr('store.prefsReset'), 'ok');
 }
 
 const cores = () => navigator.hardwareConcurrency || 4;
@@ -781,7 +805,7 @@ export function clearSavedFiles(): void {
       if (k?.startsWith(SAVED_PREFIX)) keys.push(k);
     }
     for (const k of keys) localStorage.removeItem(k);
-    toast(`已清除 ${keys.length} 个文件的保存设置`, 'ok');
+  toast(tr('store.savedCleared', { n: keys.length }), 'ok');
   } catch {
     /* ignore */
   }
@@ -935,13 +959,13 @@ export const canUndo = (): boolean => undoStack.length > 0;
 export const canRedo = (): boolean => redoStack.length > 0;
 
 export function undo(): void {
-  if (!current || !undoStack.length) return toast('没有可以撤回的操作', 'info');
+  if (!current || !undoStack.length) return toast(tr('store.noUndo'), 'info');
   redoStack.push(current);
   applySnap(undoStack.pop()!);
 }
 
 export function redo(): void {
-  if (!current || !redoStack.length) return toast('没有可以重做的操作', 'info');
+  if (!current || !redoStack.length) return toast(tr('store.noRedo'), 'info');
   undoStack.push(current);
   applySnap(redoStack.pop()!);
 }
@@ -961,7 +985,7 @@ export function clearCanvas(): void {
   state.excludedCombos = new Set();
   if (state.exportScope === 'current') state.exportScope = 'selected';
   refresh();
-  toast('画布已清空。点「撤回」可以恢复', 'ok');
+  toast(tr('store.canvasCleared'), 'ok');
 }
 
 export function addNote(kind: 'note' | 'preview'): string | null {
@@ -995,7 +1019,7 @@ export function addBundle(layerIds: string[]): string | null {
   const p = state.project;
   if (!p) return null;
   const names = layerIds.map((id) => p.layerIndex[id]?.cleanName ?? '');
-  const name = layerIds.length ? (names.length > 2 ? `${names[0]} 等 ${names.length} 个` : names.join(' + ')) : `图层包 ${(p.nodeBundles?.length ?? 0) + 1}`;
+  const name = layerIds.length ? (names.length > 2 ? tr('store.bundleNameMany', { name: names[0], n: names.length }) : names.join(' + ')) : tr('store.bundleNumber', { n: (p.nodeBundles?.length ?? 0) + 1 });
   const b = { id: uid('bun'), name, layerIds: [...layerIds] };
   p.nodeBundles = [...(p.nodeBundles ?? []), b];
   refresh();
@@ -1006,10 +1030,10 @@ export function bundleAddLayers(id: string, layerIds: string[]): void {
   const b = bundle(id);
   if (!b) return;
   const fresh = layerIds.filter((l) => !b.layerIds.includes(l));
-  if (!fresh.length) return toast('它们已经在这个图层包里了', 'info');
+  if (!fresh.length) return toast(tr('store.layersAlreadyBundled'), 'info');
   b.layerIds.push(...fresh);
   refresh();
-  toast(`「${b.name}」现在有 ${b.layerIds.length} 个图层，会一起显示`, 'ok');
+  toast(tr('store.bundleLayerCount', { name: b.name, n: b.layerIds.length }), 'ok');
 }
 
 export function bundleRemoveLayer(id: string, layerId: string): void {
@@ -1046,7 +1070,7 @@ export function linkBundle(id: string, ruleId: string): void {
   b.optionId = o.id;
   if (!(state.selection[r.id] ?? []).length && r.kind === 'exclusive') autoSelect(r);
   refresh();
-  toast(`「${b.name}」成了「${r.name}」的一个选项（${b.layerIds.length} 个图层一起显示）`, 'ok');
+  toast(tr('store.bundleLinked', { bundle: b.name, group: r.name, n: b.layerIds.length }), 'ok');
 }
 
 export function unlinkBundle(id: string): void {
@@ -1093,89 +1117,14 @@ export function currentCombo(): Combo | null {
   return res.combos.find((c) => live.every((r) => same(c.selection[r.id], state.selection[r.id]))) ?? null;
 }
 
-const FACE = /表情|脸|面部|眼|嘴|face|expression|emote/i;
-
-export interface Preset {
-  key: string;
-  label: string;
-  hint: string;
-}
-
-export const PRESETS: Preset[] = [
-  { key: 'smart', label: '智能识别（推荐）', hint: '按文件夹结构自动建好选项组：同一个文件夹里的几个差分选一个' },
-  { key: 'face', label: '只换表情', hint: '只让名字像「表情 / 脸 / 眼 / 嘴」的组参与组合，其他组固定用当前选择' },
-  { key: 'optional', label: '每组都可以不要', hint: '把所有「必选一项」改成「可选一项」：每组多一种「都不要」' },
-  { key: 'mutex', label: '互斥示例', hint: '在两个组的选项之间连一条互斥：它们不会出现在同一张图里' },
-  { key: 'require', label: '依赖示例', hint: '连一条依赖：有 A 的图里必须也有 B' },
-  { key: 'blank', label: '空白画布', hint: '清空所有节点，从零开始自己拖' },
-];
-
-export function applyPreset(key: string): void {
-  const p = state.project;
-  if (!p) return;
-  const groups = () => p.rules.filter((r) => r.kind !== 'fixed' && r.options.length >= 2);
-  switch (key) {
-    case 'smart': {
-      p.rules = [];
-      p.constraints = [];
-      p.nodeLayout = {};
-      state.selection = {};
-      state.suggestPicks = {};
-      const list = suggestions();
-      if (list.some((sg) => suggestionPicked(sg).on)) {
-        applySuggestions();
-      } else {
-        p.rules = suggestRules(p);
-        state.selection = defaultSelection(p);
-        refresh();
-      }
-      return toast(`已按智能识别建好 ${p.rules.length} 个选项组`, 'ok');
-    }
-    case 'face': {
-      const face = p.rules.filter((r) => FACE.test(r.name) || r.options.some((o) => FACE.test(o.name)));
-      if (!face.length) return toast('没找到名字像「表情 / 脸 / 眼 / 嘴」的选项组', 'info');
-      for (const r of p.rules) r.enabled = face.includes(r);
-      refresh();
-      return toast(`只换「${face.map((r) => r.name).join('、')}」，其他组固定用当前选择`, 'ok');
-    }
-    case 'optional': {
-      let n = 0;
-      for (const r of p.rules)
-        if (r.kind === 'exclusive') {
-          r.kind = 'optional';
-          n++;
-        }
-      refresh();
-      return toast(n ? `${n} 个组改成了「可选一项」` : '没有「必选一项」的组', n ? 'ok' : 'info');
-    }
-    case 'mutex':
-    case 'require': {
-      const [g1, g2] = groups();
-      if (!g1 || !g2) return toast('至少要有两个各含 2 个以上选项的组。先用「智能识别」或拖图层建组', 'info');
-      const a: Target = { kind: 'option', optionId: g1.options[g1.options.length - 1].id };
-      const b: Target = { kind: 'option', optionId: g2.options[g2.options.length - 1].id };
-      connectConstraint(key === 'mutex' ? 'mutex' : 'require', a, b);
-      const an = `${g1.name}：${g1.options[g1.options.length - 1].name}`;
-      const bn = `${g2.name}：${g2.options[g2.options.length - 1].name}`;
-      return toast(
-        key === 'mutex' ? `示例：「${an}」和「${bn}」不会出现在同一张图里。把更多选项的 ● 拖进这个节点 = 它们之间最多出现一个` : `示例：有「${an}」的图里一定有「${bn}」`,
-        'ok',
-      );
-    }
-    case 'blank':
-      return clearCanvas();
-  }
-}
-
-/** Add one more item to a rule (another tail in "at most one of these"). */
 export function appendConstraintTarget(id: string, t: Target): void {
   const c = state.project?.constraints.find((x) => x.id === id);
   if (!c) return;
-  if ([c.a, c.b, ...(c.more ?? [])].some((x) => sameTarget(x, t))) return toast('它已经在这条规则里了', 'info');
+  if ([c.a, c.b, ...(c.more ?? [])].some((x) => sameTarget(x, t))) return toast(tr('store.targetAlreadyAdded'), 'info');
   const unset = (x: Target) => !(x.kind === 'rule' ? x.ruleId : x.kind === 'option' ? x.optionId : x.layerId);
   if (unset(c.a)) c.a = t;
   else if (unset(c.b)) c.b = t;
-  else if (c.kind !== 'mutex') return toast('「依赖」只连接两项；把规则改成「互斥」后可以继续添加', 'info');
+  else if (c.kind !== 'mutex') return toast(tr('store.requireOnlyTwo'), 'info');
   else c.more = [...(c.more ?? []), t];
   refresh();
 }
@@ -1197,7 +1146,7 @@ export function createRuleWith(layerIds: string[], name?: string): string | null
   const r = ruleFromLayers(p, layerIds, 'exclusive', name);
   if (!name && layerIds.length === 1) {
     const l = p.layerIndex[layerIds[0]];
-    r.name = (l.parentId ? p.layerIndex[l.parentId]?.cleanName : '') || `选项组 ${p.rules.length + 1}`;
+  r.name = (l.parentId ? p.layerIndex[l.parentId]?.cleanName : '') || tr('store.groupNumber', { n: p.rules.length + 1 });
   }
   p.rules.push(r);
   autoSelect(r);
@@ -1210,12 +1159,12 @@ export function addLayerOption(ruleId: string, layerId: string): void {
   const p = state.project;
   const r = rule(ruleId);
   if (!p || !r) return;
-  if (r.options.some((o) => o.layerIds.length === 1 && o.layerIds[0] === layerId)) return toast('它已经是这个组的选项了', 'info');
+  if (r.options.some((o) => o.layerIds.length === 1 && o.layerIds[0] === layerId)) return toast(tr('store.layerAlreadyOption'), 'info');
   const l = p.layerIndex[layerId];
   r.options.push({ id: uid('opt'), name: l.cleanName, layerIds: [layerId], source: '' });
   if (!(state.selection[r.id] ?? []).length && r.kind === 'exclusive') autoSelect(r);
   refresh();
-  toast(`「${l.cleanName}」已作为一个选项加入「${r.name}」`, 'ok');
+  toast(tr('store.layerAddedOption', { layer: l.cleanName, group: r.name }), 'ok');
 }
 
 /** A folder's sub-folders (or layers) as the options of a new group. */
@@ -1272,24 +1221,24 @@ function replaceRuleOptions(ruleId: string, layerIds: string[], name: string): v
   delete state.selection[r.id];
   autoSelect(r);
   refresh();
-  toast(`「${r.name}」现在有 ${r.options.length} 个选项`, 'ok');
+  toast(tr('store.optionCount', { name: r.name, n: r.options.length }), 'ok');
 }
 
 /** How many pictures one group multiplies by, and why (shown next to the count). */
 export function ruleFactor(r: Rule): { n: number; why: string } {
   const k = r.options.length;
-  if (!k) return { n: 1, why: '还没有选项，暂不参与组合' };
+  if (!k) return { n: 1, why: tr('store.factorEmpty') };
   // the same count the enumeration uses
   const n = choiceCount({ ...r, enabled: true });
   switch (r.kind) {
     case 'exclusive':
-      return { n, why: `${k} 个选项选一个` };
+      return { n, why: tr('store.factorExclusive', { count: k }) };
     case 'optional':
-      return { n, why: `${k} 个选项选一个，或都不要` };
+      return { n, why: tr('store.factorOptional', { count: k }) };
     case 'multi':
-      return { n, why: k > MULTI_LIMIT ? `${k} 个选项任意搭配（只取前 ${MULTI_LIMIT} 个 = 2^${MULTI_LIMIT}）` : `${k} 个选项任意搭配 = 2^${k}` };
+      return { n, why: tr(k > MULTI_LIMIT ? 'store.factorMultiLimited' : 'store.factorMulti', { count: k, limit: MULTI_LIMIT, factor: n }) };
     default:
-      return { n: 1, why: '固定显示' };
+      return { n: 1, why: tr('store.factorFixed') };
   }
 }
 
@@ -1395,7 +1344,7 @@ export function addMutexFromChecked(): void {
   p.constraints.push({ id: uid('con'), kind: 'mutex', a: ts[0], b: ts[1], more: ts.slice(2), enabled: true, preset: 'multiMutex' });
   state.checked.clear();
   refresh();
-  toast(`已添加互斥规则：这 ${ids.length} 项最多只出现一个（在「规则」页查看）`, 'ok');
+  toast(tr('store.mutexAdded', { count: ids.length }), 'ok');
 }
 
 export function updateConstraint(id: string, patch: Partial<Constraint>): void {
@@ -1456,177 +1405,6 @@ export function nodeState(layer: LayerNode): 'drawn' | 'parent-hidden' | 'hidden
   return 'drawn';
 }
 
-/* Preview */
-
-let previewTarget: HTMLCanvasElement | null = null;
-let previewTimer: number | undefined;
-let lastPreviewKey = '';
-
-export function setPreviewCanvas(c: HTMLCanvasElement | null): void {
-  previewTarget = c;
-}
-
-/** The rendered preview, if one is available yet (used for file thumbnails). */
-export function previewSourceCanvas(): HTMLCanvasElement | null {
-  return previewTarget && previewTarget.width && previewTarget.height ? previewTarget : null;
-}
-
-export function schedulePreview(delay = 30): void {
-  if (previewTimer) clearTimeout(previewTimer);
-  previewTimer = window.setTimeout(() => void renderPreview(), delay);
-}
-
-export function imageToCanvas(img: RenderedImage, canvas?: HTMLCanvasElement): HTMLCanvasElement {
-  const c = canvas ?? document.createElement('canvas');
-  if (c.width !== img.width) c.width = img.width;
-  if (c.height !== img.height) c.height = img.height;
-  c.getContext('2d')!.putImageData(new ImageData(img.data as Uint8ClampedArray<ArrayBuffer>, img.width, img.height), 0, 0);
-  return c;
-}
-
-/*
- * Preview pipeline. Only the latest selection is ever rendered: while one
- * render runs, further clicks just update `wanted`, and intermediate states
- * are skipped (queueing every click made rapid clicking lag by N renders).
- * Recent results are cached, so toggling back and forth is instant, and on
- * slow documents a small quick render is shown first.
- */
-type PreviewJob = { key: string; on: Set<string> };
-let wanted: PreviewJob | null = null;
-let previewRunning = false;
-let lastPreviewMs = 0;
-const previewCache = new Map<string, RenderedImage>();
-let previewCacheBytes = 0;
-const PREVIEW_CACHE_BYTES = (detectPlatform() === 'android' ? 32 : 96) * 1024 * 1024;
-
-function cachePreview(key: string, img: RenderedImage): void {
-  if (previewCache.has(key)) return;
-  previewCache.set(key, img);
-  previewCacheBytes += img.data.byteLength;
-  for (const [k, v] of previewCache) {
-    if (previewCacheBytes <= PREVIEW_CACHE_BYTES || previewCache.size <= 1) break;
-    previewCache.delete(k);
-    previewCacheBytes -= v.data.byteLength;
-  }
-}
-
-function showPreview(img: RenderedImage, key: string, final: boolean): void {
-  if (!previewTarget) return;
-  imageToCanvas(img, previewTarget);
-  state.previewSize = { width: img.width, height: img.height };
-  // a quick (small) image means no finished picture is on screen any more
-  lastPreviewKey = final ? key : '';
-  notify(true);
-}
-
-let previewToken = 0;
-
-async function renderPreview(): Promise<void> {
-  const vis = state.vis;
-  if (!vis || !previewTarget || !engine.doc) return;
-  const key = [...vis.on].sort().join(',');
-  // this runs on every re-render: an unchanged request that is already
-  // running is left alone
-  if (wanted?.key === key && previewRunning) return;
-  wanted = { key, on: new Set(vis.on) };
-  if (key === lastPreviewKey && state.previewSize) {
-    if (previewRunning) {
-      // back to what is already shown: stop the render in flight
-      previewToken++;
-      previewRunning = false;
-      state.previewBusy = false;
-      notify(true);
-    }
-    return;
-  }
-  const hit = previewCache.get(key);
-  if (hit) {
-    // most-recently used goes to the end
-    previewCache.delete(key);
-    previewCache.set(key, hit);
-    previewToken++;
-    previewRunning = false;
-    state.previewBusy = false;
-    showPreview(hit, key, true);
-    return;
-  }
-  // a newer request: the worker drops the render still running for the old one
-  const job = wanted;
-  const token = ++previewToken;
-  previewRunning = true;
-  if (!state.previewBusy) {
-    state.previewBusy = true;
-    notify(true);
-  }
-  try {
-    if (state.prefs.quickPreview && lastPreviewMs > 160) {
-      // slow document: a small render first, then the sharp one
-      const quick = await engine.previewRender(job.on, 'thumb');
-      if (token !== previewToken) return;
-      showPreview(quick, job.key, false);
-    }
-    const t0 = performance.now();
-    const img = await engine.previewRender(job.on, 'preview');
-    lastPreviewMs = performance.now() - t0;
-    cachePreview(job.key, img);
-    if (token === previewToken) showPreview(img, job.key, true);
-  } catch (err) {
-    const msg = (err as Error).message;
-    if (msg !== 'superseded' && token === previewToken) toast(`预览失败：${msg}`, 'bad');
-  } finally {
-    if (token === previewToken) {
-      previewRunning = false;
-      state.previewBusy = false;
-      notify(true);
-    }
-  }
-}
-
-/** Is a preview being rendered or waiting? (background work should yield) */
-export function previewPending(): boolean {
-  return previewRunning;
-}
-
-export function invalidatePreview(): void {
-  lastPreviewKey = '';
-  previewCache.clear();
-  previewCacheBytes = 0;
-  lastPreviewMs = 0;
-}
-
-/* Combination thumbnails (lazy, one at a time) */
-
-const thumbQueue: Combo[] = [];
-let thumbRunning = false;
-
-export function requestComboThumb(combo: Combo): void {
-  if (state.comboThumbs.has(combo.signature) || thumbQueue.includes(combo)) return;
-  thumbQueue.push(combo);
-  if (!thumbRunning) void pumpThumbs();
-}
-
-async function pumpThumbs(): Promise<void> {
-  thumbRunning = true;
-  while (thumbQueue.length) {
-    // the main preview always goes first
-    while (previewRunning) await new Promise((r) => setTimeout(r, 40));
-    const combo = thumbQueue.shift()!;
-    if (state.comboThumbs.has(combo.signature)) continue;
-    try {
-      const img = await engine.thumb(combo.on);
-      state.comboThumbs.set(combo.signature, imageToCanvas(img).toDataURL('image/png'));
-      notify(true);
-    } catch {
-      break;
-    }
-  }
-  thumbRunning = false;
-}
-
-export function clearThumbQueue(): void {
-  thumbQueue.length = 0;
-}
-
 /* Which combinations to export */
 
 /** Valid combinations the user has ticked for export (default: all). */
@@ -1652,11 +1430,11 @@ export function addLayerOptions(ruleId: string, layerIds: string[]): void {
   const r = rule(ruleId);
   if (!p || !r) return;
   const fresh = layerIds.filter((id) => !r.options.some((o) => o.layerIds.length === 1 && o.layerIds[0] === id));
-  if (!fresh.length) return toast('它们已经都是这个组的选项了', 'info');
+  if (!fresh.length) return toast(tr('store.layersAlreadyOptions'), 'info');
   for (const id of fresh) r.options.push({ id: uid('opt'), name: p.layerIndex[id].cleanName, layerIds: [id], source: '' });
   if (!(state.selection[r.id] ?? []).length && r.kind === 'exclusive') autoSelect(r);
   refresh();
-  toast(`${fresh.length} 个加入了「${r.name}」，每个是一个选项`, 'ok');
+  toast(tr('store.layersAddedOptions', { n: fresh.length, group: r.name }), 'ok');
 }
 
 export function appendConstraintTargets(id: string, ts: Target[]): void {
@@ -1714,16 +1492,16 @@ export function toggleLayerVisible(id: string): void {
   // 1. the layer is itself an option: choose / un-choose it
   const own = optionOf(id);
   if (own) {
-    if (own.rule.kind === 'fixed') return toast(`「${l.cleanName}」属于固定显示的「${own.rule.name}」，总是显示`, 'info');
+    if (own.rule.kind === 'fixed') return toast(tr('store.fixedLayer', { layer: l.cleanName, group: own.rule.name }), 'info');
     if (own.on && own.rule.kind === 'exclusive') {
-      return toast(`「${own.rule.name}」是必选一项：要隐藏「${own.name}」，请在眼睛里打开同组的另一个选项`, 'info');
+      return toast(tr('store.exclusiveLayer', { group: own.rule.name, option: own.name }), 'info');
     }
     state.selection = toggleOption(p, state.selection, own.rule.id, own.oid);
     refresh({ keepFocus: true });
-    if (!own.on && own.rule.kind === 'exclusive') toast(`已切换「${own.rule.name}」为「${own.name}」`, 'ok');
+    if (!own.on && own.rule.kind === 'exclusive') toast(tr('store.optionSwitched', { group: own.rule.name, option: own.name }), 'ok');
     return;
   }
-  if (hasExportTags(l)) return toast(`「${l.cleanName}」带导出标签，由标签对应的选项决定是否显示`, 'info');
+  if (hasExportTags(l)) return toast(tr('store.tagControlsLayer', { layer: l.cleanName }), 'info');
 
   // 2. a plain layer. The eye is about the picture: a layer on screen gets
   //    hidden; a layer that is NOT on screen is made to show, whatever is in
@@ -1754,26 +1532,26 @@ export function toggleLayerVisible(id: string): void {
       if (!opt.on && opt.rule.kind !== 'fixed') {
         state.selection = toggleOption(p, state.selection, opt.rule.id, opt.oid);
         selectionChanged = true;
-        notes.push(`选中了「${opt.rule.name}」的「${opt.name}」`);
+        notes.push(tr('store.selectedOption', { group: opt.rule.name, option: opt.name }));
       }
       forcedAbove = true;
       continue;
     }
     if (!forcedAbove && !ownOn(a)) {
       setOwn(a, true);
-      notes.push(`打开了上级组「${p.layerIndex[a].cleanName}」`);
+      notes.push(tr('store.openedParent', { group: p.layerIndex[a].cleanName }));
     }
   }
   refresh(selectionChanged ? { keepFocus: true } : { keepFocus: true, quick: true });
-  if (notes.length) toast(`显示「${l.cleanName}」：同时${notes.join('，')}`, 'ok');
-  else if (!isDrawn(p, state.vis!, id)) toast(`「${l.cleanName}」带导出标签或被规则控制，暂时无法单独显示`, 'info');
+  if (notes.length) toast(tr('store.layerShown', { layer: l.cleanName, notes: notes.join(', ') }), 'ok');
+  else if (!isDrawn(p, state.vis!, id)) toast(tr('store.layerControlled', { layer: l.cleanName }), 'info');
 }
 
 export function resetVisibility(): void {
   if (!state.project) return;
   state.project.visibility = {};
   refresh({ keepFocus: true });
-  toast('已恢复文件里保存的显示 / 隐藏状态', 'ok');
+  toast(tr('store.visibilityRestored'), 'ok');
 }
 
 export function isAtomic(id: string): boolean {
@@ -1842,7 +1620,7 @@ export function applySuggestions(): void {
   const p = state.project;
   if (!p) return;
   const picked = suggestions().filter((sg) => suggestionPicked(sg).on);
-  if (!picked.length) return toast('先勾选要创建的选项组', 'info');
+  if (!picked.length) return toast(tr('store.pickGroupsFirst'), 'info');
   for (const sg of picked) {
     const r = ruleFromLayers(p, sg.layerIds, suggestionPicked(sg).kind, sg.name);
     r.options.forEach((o, i) => (o.name = sg.optionNames[i] || o.name));
@@ -1852,7 +1630,7 @@ export function applySuggestions(): void {
   }
   state.suggestPicks = {};
   refresh();
-  toast(`已创建 ${picked.length} 个选项组，共 ${state.result?.combos.length ?? 0} 种组合。可在「选项组」页继续调整`, 'ok');
+  toast(tr('store.groupsFromSuggestions', { groups: picked.length, combos: state.result?.combos.length ?? 0 }), 'ok');
 }
 
 export function dismissSuggestions(off = true): void {
@@ -1861,44 +1639,20 @@ export function dismissSuggestions(off = true): void {
   notify();
 }
 
-/* Config files */
-
-export function exportConfigText(): string {
-  const p = state.project!;
-  const excluded = (state.result?.combos ?? []).filter((c) => state.excludedCombos.has(c.signature)).map((c) => c.labels);
-  return JSON.stringify(buildConfig(p, state.selection, excluded), null, 1);
-}
-
-export function importConfigText(text: string): void {
-  const p = state.project;
-  if (!p) return;
-  const cfg = parseConfig(text);
-  const res = applyConfig(p, cfg);
-  state.selection = normalizeSelection(p, res.selection);
-  if (p.settings.profile) void engine.setProfile(p.settings.profile);
-  resultKey = '';
-  refresh();
-  const keys = new Set(res.excludedLabels.map(labelKey));
-  state.excludedCombos = new Set((state.result?.combos ?? []).filter((c) => keys.has(labelKey(c.labels))).map((c) => c.signature));
-  save();
-  notify();
-  const where = cfg.source?.name && cfg.source.name !== p.name ? `（来自「${cfg.source.name}」）` : '';
-  if (res.missing.length) {
-    toast(`配置已导入${where}，但有 ${res.missing.length} 个图层没找到：${res.missing.slice(0, 3).join('、')}${res.missing.length > 3 ? '…' : ''}`, 'bad');
-  } else {
-    toast(`配置已导入${where}：${p.rules.length} 个选项组、${p.constraints.length} 条规则，图层全部对上`, 'ok');
-  }
-}
-
 /* Compositing rules */
 
 export const PROFILE_LABEL: Record<ProfileId, string> = {
   photoshop: 'Photoshop',
   procreate: 'Procreate',
-  painter: '其他绘画软件（SAI / 爱笔思画 / MediBang 等）',
-  'gpu-trunc': '移动端 GPU（截断取整）',
-  'gpu-u8': '移动端 GPU（逐层 8 位）',
+  painter: 'profile.painter',
+  'gpu-trunc': 'profile.gpuTrunc',
+  'gpu-u8': 'profile.gpuU8',
 };
+
+export function profileLabel(profile: ProfileId): string {
+  const key = PROFILE_LABEL[profile];
+  return key.startsWith('profile.') ? tr(key) : key;
+}
 
 export function activeProfile(): ProfileId {
   return state.project?.settings.profile ?? state.calibration?.profile ?? 'photoshop';
@@ -1913,17 +1667,17 @@ export async function chooseProfile(choice: ProfileId | 'auto'): Promise<void> {
   state.compare = null;
   invalidatePreview();
   refresh({ keepFocus: true });
-  toast(`合成方式：${PROFILE_LABEL[activeProfile()]}`, 'ok');
+  toast(tr('store.profileChosen', { profile: profileLabel(activeProfile()) }), 'ok');
 }
 
 /* Fidelity check */
 
 export async function runCompare(): Promise<void> {
-  setBusy('正在与 PSD 内保存的合成图逐像素比对…', 0.5);
+  setBusy(tr('store.comparing'), 0.5);
   try {
     state.compare = await engine.compare();
   } catch (err) {
-    toast(`比对失败：${(err as Error).message}`, 'bad');
+    toast(tr('store.compareFailed', { msg: (err as Error).message }), 'bad');
   } finally {
     setBusy(null);
   }

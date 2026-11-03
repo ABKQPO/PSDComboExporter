@@ -1,8 +1,14 @@
 import './styles.css';
+import { initLocale, onLocaleChange, setLocale, systemLocale, t } from './i18n';
 import { mount, installGlobalDrop } from './ui/app';
 import { importFile } from './ui/importPanel';
 import { installDebugApi } from './debug';
 import * as store from './ui/store';
+
+initLocale();
+setLocale(store.state.prefs.locale === 'auto' ? systemLocale() : store.state.prefs.locale);
+document.title = t('app.name');
+onLocaleChange(() => store.notify());
 
 const el = document.getElementById('app');
 if (!el) throw new Error('#app not found');
@@ -14,7 +20,7 @@ installGlobalDrop();
 const native = (window as any).psdExportNative;
 if (native?.onOpenFile) {
   native.onOpenFile(async (payload: { name: string; data: ArrayBuffer | Uint8Array; error?: string }) => {
-    if (payload.error) return store.toast(`无法读取文件：${payload.error}`, 'bad');
+    if (payload.error) return store.toast(t('app.fileReadError', { error: payload.error }), 'bad');
     const bytes = payload.data instanceof Uint8Array ? payload.data : new Uint8Array(payload.data);
     await importFile(new File([bytes as BlobPart], payload.name, { type: 'image/vnd.adobe.photoshop' }));
   });

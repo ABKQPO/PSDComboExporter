@@ -10,7 +10,7 @@ import fs from 'node:fs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 let status = 0;
-for (const name of ['logic.test.mjs', 'engine.test.mjs', 'export.test.mjs']) {
+for (const name of ['logic.test.mjs', 'engine.test.mjs', 'export.test.mjs', 'node-search.test.mjs', 'manifest.test.mjs']) {
   const out = path.join(here, '..', 'node_modules', '.cache', name.replace('.mjs', '.bundle.mjs'));
   fs.mkdirSync(path.dirname(out), { recursive: true });
   await build({

@@ -1,0 +1,16 @@
+﻿{
+    "home.recent":  "Recent files",
+    "home.empty":  "No files yet. Open a PSD and it will show up here.",
+    "home.clear":  "Clear list",
+    "home.clearConfirm":  "Clear the recent file list? Saved option groups are kept.",
+    "home.clearHint":  "Change how many are shown in Settings",
+    "home.more":  "Change count",
+    "home.remove":  "Remove from list",
+    "home.detail":  "{w}×{h} · {layers} layers · {rules} groups",
+    "home.reopen":  "Pick {name} again to open it",
+    "home.reopenToast":  "Select {name}; the saved option groups will be restored",
+    "home.timeNow":  "just now",
+    "home.timeMinutes":  "{n} min ago",
+    "home.timeHours":  "{n} h ago",
+    "home.timeDays":  "{n} d ago"
+}

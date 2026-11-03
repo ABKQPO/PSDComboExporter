@@ -1,0 +1,5 @@
+{
+  "config.source": " from “{source}”",
+  "config.importMissing": "Imported config{source}, but {count} layers were not found: {names}.",
+  "config.imported": "Imported config{source}: {groups} option groups and {rules} rules; all layers matched."
+}

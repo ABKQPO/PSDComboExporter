@@ -1,0 +1,9 @@
+{
+  "import.reading": "正在读取 {name}（{size}）…",
+  "import.parsing": "正在解析图层结构…",
+  "import.decoding": "解码图层 {done}/{total}：{label}",
+  "import.unsupported": "{n} 个图层含有无法完全还原的特性（{features}），已在「图层」页标出。",
+  "import.loaded": "已载入 {name}：{w}×{h}，{layers} 个图层/组，用时 {seconds} 秒",
+  "import.outOfMemory": "内存不足，无法打开这个 PSD：{msg}",
+  "import.failed": "解析失败：{msg}"
+}

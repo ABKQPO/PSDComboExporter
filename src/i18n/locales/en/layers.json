@@ -1,0 +1,15 @@
+{
+  "layers.guideTitle": "Step 1: Choose the layers that participate in combinations.",
+  "layers.guideBefore": "Select layers or groups and make them an option group below, or click",
+  "layers.childrenAsOptions": "⇢ Children as options",
+  "layers.guideAfter": "to make each child an option (for example, short / long hair). Layers outside option groups keep their PSD visibility in every export; click the eye beside a layer to show or hide it.",
+  "layers.layerCount": "{count} layers / groups",
+  "layers.visibleCount": "Showing {count} layers",
+  "layers.compareTitle": "Render the visibility saved in the PSD and compare pixel by pixel with its composite",
+  "layers.compare": "Check render fidelity",
+  "layers.search": "Search layers or groups…",
+  "layers.legend": "Legend: open eye = visible; yellow open eye = visible itself but hidden by a parent group; closed eye = hidden. Blue labels after a layer name show its option group. Atomic groups can be expanded, but their layers cannot become separate options.",
+  "layers.noMatches": "No layers contain “{query}”",
+  "layers.compositingMethod": "Compositing method",
+  "layers.autoProfile": "Detect automatically ({profile})"
+}
